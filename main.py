@@ -49,11 +49,15 @@ templates = Jinja2Templates(directory="templates")
 # ════════════════════════════════════════════════════
 
 def buscar_web(keyword, fecha_inicio=None, fecha_fin=None, num=20):
-    payload = {"q": keyword, "gl": "pe", "num": num}
-    payload["tbs"] = (
-        f"cdr:1,cd_min:{fecha_inicio},cd_max:{fecha_fin}"
-        if fecha_inicio and fecha_fin else "qdr:d"
-    )
+    payload = {"q": keyword, "gl": "pe", "hl": "es", "num": num}
+    if fecha_inicio and fecha_fin:
+        payload["tbs"] = f"cdr:1,cd_min:{fecha_inicio},cd_max:{fecha_fin}"
+    else:
+        # qdr:d = últimas 24h; agregamos fecha explícita para forzar el filtro
+        from datetime import datetime, timedelta
+        ayer = (datetime.now() - timedelta(days=1)).strftime("%-m/%-d/%Y")
+        hoy  = datetime.now().strftime("%-m/%-d/%Y")
+        payload["tbs"] = f"cdr:1,cd_min:{ayer},cd_max:{hoy}"
     headers = {"X-API-KEY": SERPER_API_KEY, "Content-Type": "application/json"}
     try:
         r = requests.post("https://google.serper.dev/search",
@@ -65,7 +69,7 @@ def buscar_web(keyword, fecha_inicio=None, fecha_fin=None, num=20):
 
 
 def buscar_news(keyword, num=20):
-    payload = {"q": keyword, "gl": "pe", "num": num}
+    payload = {"q": keyword, "gl": "pe", "hl": "es", "num": num}
     headers = {"X-API-KEY": SERPER_API_KEY, "Content-Type": "application/json"}
     try:
         r = requests.post("https://google.serper.dev/news",
@@ -90,21 +94,42 @@ def parsear(item, tipo):
     }
 
 
+def generar_variaciones(keyword):
+    """Genera variaciones de búsqueda para máxima cobertura."""
+    base = keyword.strip()
+    variaciones = [base]
+    # Si no tiene comillas, agregar versión con comillas exactas
+    if '"' not in base:
+        variaciones.append(f'"{base}"')
+    # Agregar contexto Perú si no está ya
+    if "peru" not in base.lower() and "perú" not in base.lower():
+        variaciones.append(f"{base} Peru")
+    return variaciones[:3]  # máximo 3 variaciones para no gastar queries
+
+
 def buscar_keyword(keyword, fecha_inicio=None, fecha_fin=None, num=20):
-    """Busca en web + news, deduplica, ordena: medios por tier primero, redes al final."""
+    """
+    Motor mejorado: múltiples variaciones de keyword, deduplica por URL,
+    ordena medios por tier primero y redes al final.
+    """
     todos = {}
-    for item in buscar_web(keyword, fecha_inicio, fecha_fin, num):
-        r = parsear(item, "web")
-        if r["url"]:
-            uid = hashlib.md5(r["url"].encode()).hexdigest()
-            if uid not in todos:
-                todos[uid] = r
-    for item in buscar_news(keyword, num):
-        r = parsear(item, "news")
-        if r["url"]:
-            uid = hashlib.md5(r["url"].encode()).hexdigest()
-            if uid not in todos:
-                todos[uid] = r
+    variaciones = generar_variaciones(keyword)
+
+    for kw in variaciones:
+        for item in buscar_web(kw, fecha_inicio, fecha_fin, num):
+            r = parsear(item, "web")
+            if r["url"]:
+                uid = hashlib.md5(r["url"].encode()).hexdigest()
+                if uid not in todos:
+                    todos[uid] = r
+        for item in buscar_news(kw, num):
+            r = parsear(item, "news")
+            if r["url"]:
+                uid = hashlib.md5(r["url"].encode()).hexdigest()
+                if uid not in todos:
+                    todos[uid] = r
+        time.sleep(0.2)  # pausa entre variaciones
+
     resultados = list(todos.values())
     resultados.sort(key=lambda x: (int(x["es_red"]), orden_tier(x["tier"])))
     return resultados
@@ -115,10 +140,27 @@ def buscar_keyword(keyword, fecha_inicio=None, fecha_fin=None, num=20):
 # En alertas NO se usa Claude para ahorrar costo
 # ════════════════════════════════════════════════════
 
-PROMPT_TONO = """Eres analista de monitoreo de medios peruano.
-Analiza si la mención es positiva, negativa o neutra PARA LA KEYWORD/MARCA.
-Responde SOLO JSON válido sin texto extra:
-{"tono":"positivo"|"negativo"|"neutro","justificacion":"Una oración.","relevancia":"alta"|"media"|"baja"}"""
+PROMPT_TONO = """Eres un analista senior de relaciones públicas y monitoreo de medios en Perú.
+Tu trabajo es determinar si una noticia es POSITIVA, NEGATIVA o NEUTRA para una marca o persona específica (el "cliente").
+
+REGLA FUNDAMENTAL: Analiza el ENCUADRAMIENTO de la noticia, no las palabras sueltas.
+- "Derrota del rival" es POSITIVA para el cliente que ganó
+- "Crisis en el sector" puede ser NEUTRA si el cliente solo es mencionado de paso
+- El tono emocional del periodista no siempre refleja la posición del cliente
+- Considera contexto implícito: victoria del rival = derrota del cliente, y viceversa
+
+PASOS:
+1. ¿Quién es el protagonista real de la noticia?
+2. ¿Qué le pasa al cliente — gana, pierde, es mencionado, es atacado?
+3. ¿El hecho beneficia o perjudica la imagen e intereses del cliente?
+
+CRITERIOS:
+- POSITIVO: favorece imagen, reputación o intereses del cliente
+- NEGATIVO: daña o puede dañar imagen, reputación o intereses del cliente
+- NEUTRO: mención informativa sin carga valorativa clara, o actor secundario
+
+Responde SOLO con JSON válido, sin texto extra, sin markdown:
+{"tono":"positivo"|"negativo"|"neutro","justificacion":"Una oración explicando el encuadramiento.","relevancia":"alta"|"media"|"baja"}"""
 
 
 def analizar_tono(titulo, snippet, keyword):
