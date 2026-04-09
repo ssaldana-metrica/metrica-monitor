@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Métrica Monitor</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--azul:#003366;--azul2:#004080;--azulc:#0066CC;--bg:#F4F6F9;--surface:#fff;--borde:#D0D9E6;--txt:#1A2332;--muted:#5A6A7E;--faint:#9CA8B8;--verde:#166534;--rojo:#991B1B;--r:8px}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh}
+.topbar{background:var(--azul);padding:0 28px;height:52px;display:flex;align-items:center;justify-content:space-between}
+.brand{font-weight:700;font-size:17px;color:#fff}.brand span{color:#F59E0B}
+.meta{font-size:11px;color:rgba(255,255,255,.45)}
+.wrap{max-width:1180px;margin:0 auto;padding:24px 20px;display:grid;grid-template-columns:340px 1fr;gap:18px}
+@media(max-width:860px){.wrap{grid-template-columns:1fr}}
+.card{background:var(--surface);border:1px solid var(--borde);border-radius:var(--r);padding:16px;margin-bottom:14px}
+.ctitle{font-weight:600;font-size:12px;color:var(--azul);margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid var(--azul)}
+label{font-size:11px;font-weight:500;color:var(--muted);display:block;margin-bottom:3px}
+input,select{width:100%;padding:7px 10px;border:1px solid var(--borde);border-radius:5px;font-size:12px;color:var(--txt);font-family:'Inter',sans-serif;background:var(--bg)}
+input:focus,select:focus{outline:none;border-color:var(--azulc)}
+.fr{margin-bottom:9px}
+.fr2{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:9px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:4px;padding:7px 13px;border-radius:5px;font-size:12px;font-weight:500;cursor:pointer;border:none;font-family:'Inter',sans-serif;transition:opacity .15s}
+.btn:hover{opacity:.85}
+.bp{background:var(--azul);color:#fff;width:100%}
+.bd{background:#fee2e2;color:var(--rojo);padding:3px 9px;font-size:11px}
+.bs{background:#dcfce7;color:var(--verde)}
+.li{display:flex;align-items:center;justify-content:space-between;padding:7px 9px;border:1px solid var(--borde);border-radius:5px;margin-bottom:5px;font-size:12px;background:var(--bg)}
+.lil{font-weight:500}
+.lim{font-size:10px;color:var(--faint);margin-top:1px}
+.empty{text-align:center;color:var(--faint);font-size:12px;padding:18px 0}
+.info-box{font-size:11px;color:var(--muted);padding:8px 10px;background:var(--bg);border-radius:5px;margin-bottom:10px;line-height:1.6;border-left:3px solid var(--azulc)}
+.badge{display:inline-block;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:700}
+.ba{background:#FEF3C7;color:#92400E}
+.bd2{background:#EFF6FF;color:#1E40AF}
+.hist{display:flex;align-items:center;gap:8px;padding:7px 10px;border:1px solid var(--borde);border-radius:5px;margin-bottom:5px;font-size:11px}
+.hkw{font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hn{font-weight:700;color:var(--azulc);flex-shrink:0}
+.hd{color:var(--faint);flex-shrink:0;white-space:nowrap}
+.hok{color:var(--verde);flex-shrink:0}
+.hno{color:var(--faint);flex-shrink:0}
+.bm-a{background:#FEF3C7;color:#92400E;font-size:9px;padding:1px 5px;border-radius:3px;font-weight:700;flex-shrink:0}
+.bm-d{background:#EFF6FF;color:#1E40AF;font-size:9px;padding:1px 5px;border-radius:3px;font-weight:700;flex-shrink:0}
+.bm-m{background:#F3F4F6;color:#374151;font-size:9px;padding:1px 5px;border-radius:3px;font-weight:700;flex-shrink:0}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="brand">Métrica<span>.</span> Monitor</div>
+  <div class="meta">Panel interno · Lima, Perú</div>
+</div>
+
+<div class="wrap">
+  <div>
+
+    <!-- BÚSQUEDA MANUAL -->
+    <div class="card">
+      <div class="ctitle">🔍 Búsqueda por fechas</div>
+      <form method="POST" action="/buscar">
+        <div class="fr">
+          <label>Keyword o persona</label>
+          <input type="text" name="keyword" placeholder='"Luz del Sur" OR crisis' required>
+        </div>
+        <div class="fr2">
+          <div><label>Desde</label><input type="date" name="fecha_inicio"></div>
+          <div><label>Hasta</label><input type="date" name="fecha_fin"></div>
+        </div>
+        <div class="fr">
+          <label>Máx. resultados</label>
+          <select name="num_resultados">
+            <option value="10">10</option>
+            <option value="20" selected>20</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select>
+        </div>
+        <button type="submit" class="btn bp">Buscar ahora</button>
+      </form>
+    </div>
+
+    <!-- KEYWORDS PERMANENTES -->
+    <div class="card">
+      <div class="ctitle">📌 Keywords permanentes</div>
+      <div class="info-box">
+        <b>⚡ Alerta inmediata:</b> busca cada pocos minutos. Solo manda email cuando aparece una noticia nueva. Si no hay nada nuevo, no gasta nada.<br>
+        <b>📅 Resumen diario:</b> un solo email a las 12pm con todo lo del día + análisis de tono.
+      </div>
+      <form method="POST" action="/keywords/agregar" style="margin-bottom:10px">
+        <div class="fr">
+          <label>Keyword</label>
+          <input type="text" name="keyword" placeholder='Ej: "Kallpa" +crisis' required>
+        </div>
+        <div class="fr2">
+          <div>
+            <label>Modo</label>
+            <select name="modo" id="modo-sel" onchange="toggleFreq(this.value)">
+              <option value="alerta">⚡ Alerta inmediata</option>
+              <option value="diario" selected>📅 Resumen diario</option>
+            </select>
+          </div>
+          <div id="freq-wrap">
+            <label>Frecuencia</label>
+            <select name="frecuencia_horas" id="freq-sel">
+              <option value="5">Cada 5 min</option>
+              <option value="10">Cada 10 min</option>
+              <option value="15" selected>Cada 15 min</option>
+            </select>
+          </div>
+        </div>
+        <button type="submit" class="btn bp">Agregar keyword</button>
+      </form>
+
+      {% if keywords %}
+        {% for kw in keywords %}
+        <div class="li">
+          <div style="min-width:0;flex:1;overflow:hidden">
+            <div class="lil">
+              {% if kw.modo == 'alerta' %}<span class="badge ba">⚡</span>
+              {% else %}<span class="badge bd2">📅</span>{% endif %}
+              &nbsp;{{ kw.keyword }}
+            </div>
+            <div class="lim">
+              {% if kw.modo == 'alerta' %}c/{{ kw.frecuencia_horas }} min
+              {% else %}diario 12pm{% endif %}
+              · desde {{ kw.creada_en[:10] }}
+            </div>
+          </div>
+          <form method="POST" action="/keywords/eliminar">
+            <input type="hidden" name="keyword_id" value="{{ kw.id }}">
+            <button class="btn bd" onclick="return confirm('¿Eliminar?')">✕</button>
+          </form>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="empty">Sin keywords permanentes aún</div>
+      {% endif %}
+    </div>
+
+    <!-- DESTINATARIOS -->
+    <div class="card">
+      <div class="ctitle">✉️ Destinatarios del email</div>
+      <form method="POST" action="/destinatarios/agregar" style="margin-bottom:10px">
+        <div class="fr">
+          <label>Email</label>
+          <input type="email" name="email" placeholder="correo@metrica.pe" required>
+        </div>
+        <button type="submit" class="btn bp">Agregar</button>
+      </form>
+      {% if destinatarios %}
+        {% for d in destinatarios %}
+        <div class="li">
+          <span class="lil">{{ d.email }}</span>
+          <form method="POST" action="/destinatarios/eliminar">
+            <input type="hidden" name="dest_id" value="{{ d.id }}">
+            <button class="btn bd" onclick="return confirm('¿Eliminar?')">✕</button>
+          </form>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="empty">Sin destinatarios</div>
+      {% endif %}
+    </div>
+
+  </div>
+
+  <!-- HISTORIAL -->
+  <div>
+    <div class="card">
+      <div class="ctitle">📋 Historial de reportes</div>
+      {% if historial %}
+        {% for h in historial %}
+        <div class="hist">
+          <span class="bm-{{ h.modo }}">{{ h.modo.upper() }}</span>
+          <span class="hkw">{{ h.keyword }}</span>
+          <span class="hn">{{ h.total_resultados }}</span>
+          <span class="hd">{{ h.ejecutado_en[:16].replace('T',' ') }}</span>
+          {% if h.email_enviado %}<span class="hok">✓</span>
+          {% else %}<span class="hno">—</span>{% endif %}
+          <a href="/historial/{{ h.id }}" target="_blank"
+             class="btn bs" style="padding:3px 9px;font-size:11px">Ver</a>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="empty" style="padding:60px 0">
+          Aún no hay reportes generados.<br>
+          Haz una búsqueda manual o agrega keywords permanentes.
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<script>
+function toggleFreq(modo) {
+  const fw = document.getElementById('freq-wrap');
+  const fs = document.getElementById('freq-sel');
+  if (modo === 'alerta') {
+    fw.style.display = 'block';
+    fs.innerHTML = '<option value="5">Cada 5 min</option><option value="10">Cada 10 min</option><option value="15" selected>Cada 15 min</option>';
+  } else {
+    fw.style.display = 'none';
+  }
+}
+toggleFreq(document.getElementById('modo-sel').value);
+</script>
+</body>
+</html>
