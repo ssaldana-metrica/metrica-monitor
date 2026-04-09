@@ -498,6 +498,8 @@ async def enviar_resultado_manual(
     fecha  = datetime.now().strftime("%d/%m/%Y %H:%M")
     asunto = f"Métrica Monitor · {keyword} · {fecha}"
     ok     = enviar_mailgun(html_email, asunto, dests)
+    # Guardar en historial
+    save_historial(None, keyword, "manual", 0, ok, html_email)
     return JSONResponse({"ok": ok, "destinatarios": dests})
 
 
