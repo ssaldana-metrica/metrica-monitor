@@ -110,29 +110,33 @@ def generar_variaciones(keyword):
 def buscar_keyword(keyword, fecha_inicio=None, fecha_fin=None, num=20):
     """
     Motor mejorado: múltiples variaciones de keyword, deduplica por URL,
+    respeta el límite num en el total final,
     ordena medios por tier primero y redes al final.
     """
     todos = {}
     variaciones = generar_variaciones(keyword)
+    # Pedimos menos por variación para no exceder el total
+    num_por_variacion = max(5, num // len(variaciones))
 
     for kw in variaciones:
-        for item in buscar_web(kw, fecha_inicio, fecha_fin, num):
+        for item in buscar_web(kw, fecha_inicio, fecha_fin, num_por_variacion):
             r = parsear(item, "web")
             if r["url"]:
                 uid = hashlib.md5(r["url"].encode()).hexdigest()
                 if uid not in todos:
                     todos[uid] = r
-        for item in buscar_news(kw, num):
+        for item in buscar_news(kw, num_por_variacion):
             r = parsear(item, "news")
             if r["url"]:
                 uid = hashlib.md5(r["url"].encode()).hexdigest()
                 if uid not in todos:
                     todos[uid] = r
-        time.sleep(0.2)  # pausa entre variaciones
+        time.sleep(0.2)
 
     resultados = list(todos.values())
     resultados.sort(key=lambda x: (int(x["es_red"]), orden_tier(x["tier"])))
-    return resultados
+    # Respetar el límite total solicitado
+    return resultados[:num]
 
 
 # ════════════════════════════════════════════════════
@@ -143,24 +147,29 @@ def buscar_keyword(keyword, fecha_inicio=None, fecha_fin=None, num=20):
 PROMPT_TONO = """Eres un analista senior de relaciones públicas y monitoreo de medios en Perú.
 Tu trabajo es determinar si una noticia es POSITIVA, NEGATIVA o NEUTRA para una marca o persona específica (el "cliente").
 
-REGLA FUNDAMENTAL: Analiza el ENCUADRAMIENTO de la noticia, no las palabras sueltas.
-- "Derrota del rival" es POSITIVA para el cliente que ganó
-- "Crisis en el sector" puede ser NEUTRA si el cliente solo es mencionado de paso
-- El tono emocional del periodista no siempre refleja la posición del cliente
-- Considera contexto implícito: victoria del rival = derrota del cliente, y viceversa
+REGLA FUNDAMENTAL: Analiza el ENCUADRAMIENTO completo, no palabras sueltas.
 
-PASOS:
-1. ¿Quién es el protagonista real de la noticia?
-2. ¿Qué le pasa al cliente — gana, pierde, es mencionado, es atacado?
-3. ¿El hecho beneficia o perjudica la imagen e intereses del cliente?
+CONTEXTO DE RIVALES Y COMPETENCIA:
+- Si algo negativo le pasa al RIVAL del cliente → es POSITIVO para el cliente
+- Si algo positivo le pasa al RIVAL del cliente → puede ser NEGATIVO o NEUTRO para el cliente
+- Ejemplos deportivos: expulsión del rival = ventaja para el cliente / derrota del rival = victoria del cliente
+- Ejemplos empresariales: crisis en competidor = oportunidad para el cliente / multa al rival = neutro o positivo
 
-CRITERIOS:
-- POSITIVO: favorece imagen, reputación o intereses del cliente
-- NEGATIVO: daña o puede dañar imagen, reputación o intereses del cliente
-- NEUTRO: mención informativa sin carga valorativa clara, o actor secundario
+REGLA DE DUDA: Si no puedes determinar con certeza cómo afecta al cliente, marca NEUTRO.
+Nunca atribuyas negativo por una palabra aislada sin entender a quién pertenece el hecho.
+
+PASOS OBLIGATORIOS:
+1. ¿Quién es el protagonista del hecho? ¿Es el cliente o su rival?
+2. ¿El hecho narrado beneficia o perjudica al cliente directamente?
+3. Si el protagonista es el rival: ¿lo que le pasa al rival beneficia o perjudica al cliente?
+
+CRITERIOS FINALES:
+- POSITIVO: el hecho favorece imagen, reputación, resultados o intereses del cliente
+- NEGATIVO: el hecho daña directamente la imagen, reputación o intereses del cliente
+- NEUTRO: mención informativa, actor secundario, o contexto ambiguo sin certeza
 
 Responde SOLO con JSON válido, sin texto extra, sin markdown:
-{"tono":"positivo"|"negativo"|"neutro","justificacion":"Una oración explicando el encuadramiento.","relevancia":"alta"|"media"|"baja"}"""
+{"tono":"positivo"|"negativo"|"neutro","justificacion":"Una oración explicando quién es el protagonista y cómo afecta al cliente.","relevancia":"alta"|"media"|"baja"}"""
 
 
 def analizar_tono(titulo, snippet, keyword):
