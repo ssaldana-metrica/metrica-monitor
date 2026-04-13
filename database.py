@@ -1,7 +1,9 @@
 import sqlite3
+import os
 from datetime import datetime
 
-DB_PATH = "metrica.db"
+# Usar disco persistente en Render si existe, sino usar local
+DB_PATH = "/var/data/metrica.db" if os.path.isdir("/var/data") else "metrica.db"
 
 
 def get_conn():
