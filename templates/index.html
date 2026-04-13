@@ -3,190 +3,849 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Métrica Monitor</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<title>Métrica Monitor · Intelligence Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Calistoga&family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{--azul:#003366;--azul2:#004080;--azulc:#0066CC;--bg:#F4F6F9;--surface:#fff;--borde:#D0D9E6;--txt:#1A2332;--muted:#5A6A7E;--faint:#9CA8B8;--verde:#166534;--rojo:#991B1B;--r:8px}
-body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh}
-.topbar{background:var(--azul);padding:0 28px;height:52px;display:flex;align-items:center;justify-content:space-between}
-.brand{font-weight:700;font-size:17px;color:#fff}.brand span{color:#F59E0B}
-.meta{font-size:11px;color:rgba(255,255,255,.45)}
-.wrap{max-width:1180px;margin:0 auto;padding:24px 20px;display:grid;grid-template-columns:340px 1fr;gap:18px}
-@media(max-width:860px){.wrap{grid-template-columns:1fr}}
-.card{background:var(--surface);border:1px solid var(--borde);border-radius:var(--r);padding:16px;margin-bottom:14px}
-.ctitle{font-weight:600;font-size:12px;color:var(--azul);margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid var(--azul)}
-label{font-size:11px;font-weight:500;color:var(--muted);display:block;margin-bottom:3px}
-input,select{width:100%;padding:7px 10px;border:1px solid var(--borde);border-radius:5px;font-size:12px;color:var(--txt);font-family:'Inter',sans-serif;background:var(--bg)}
-input:focus,select:focus{outline:none;border-color:var(--azulc)}
-.fr{margin-bottom:9px}
-.fr2{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:9px}
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:4px;padding:7px 13px;border-radius:5px;font-size:12px;font-weight:500;cursor:pointer;border:none;font-family:'Inter',sans-serif;transition:opacity .15s}
-.btn:hover{opacity:.85}
-.bp{background:var(--azul);color:#fff;width:100%}
-.bd{background:#fee2e2;color:var(--rojo);padding:3px 9px;font-size:11px}
-.bs{background:#dcfce7;color:var(--verde)}
-.li{display:flex;align-items:center;justify-content:space-between;padding:7px 9px;border:1px solid var(--borde);border-radius:5px;margin-bottom:5px;font-size:12px;background:var(--bg)}
-.lil{font-weight:500}
-.lim{font-size:10px;color:var(--faint);margin-top:1px}
-.empty{text-align:center;color:var(--faint);font-size:12px;padding:18px 0}
-.info-box{font-size:11px;color:var(--muted);padding:8px 10px;background:var(--bg);border-radius:5px;margin-bottom:10px;line-height:1.6;border-left:3px solid var(--azulc)}
-.badge{display:inline-block;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:700}
-.ba{background:#FEF3C7;color:#92400E}
-.bd2{background:#EFF6FF;color:#1E40AF}
-.hist{display:flex;align-items:center;gap:8px;padding:7px 10px;border:1px solid var(--borde);border-radius:5px;margin-bottom:5px;font-size:11px}
-.hkw{font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.hn{font-weight:700;color:var(--azulc);flex-shrink:0}
-.hd{color:var(--faint);flex-shrink:0;white-space:nowrap}
-.hok{color:var(--verde);flex-shrink:0}
-.hno{color:var(--faint);flex-shrink:0}
-.bm-a{background:#FEF3C7;color:#92400E;font-size:9px;padding:1px 5px;border-radius:3px;font-weight:700;flex-shrink:0}
-.bm-d{background:#EFF6FF;color:#1E40AF;font-size:9px;padding:1px 5px;border-radius:3px;font-weight:700;flex-shrink:0}
-.bm-m{background:#F3F4F6;color:#374151;font-size:9px;padding:1px 5px;border-radius:3px;font-weight:700;flex-shrink:0}
+:root{
+  --electric-blue:#0052FF;--electric-blue-end:#4D7CFF;
+  --void:#030712;--dark-matter:#0F172A;--surface-glass:rgba(255,255,255,0.7);
+  --bg-canvas:#FAFBFE;--text-primary:#0F172A;--text-muted:#64748B;--text-light:#94A3B8;
+  --border-glass:rgba(148,163,184,0.2);--border-solid:#E2E8F0;
+  --green:#059669;--green-glass:rgba(5,150,105,0.1);
+  --red:#DC2626;--red-glass:rgba(220,38,38,0.1);
+  --amber:#F59E0B;--amber-glass:rgba(245,158,11,0.1);
+  --violet:#7C3AED;--violet-glass:rgba(124,58,237,0.1);
+  --shadow-sm:0 1px 2px rgba(15,23,42,0.04);
+  --shadow-md:0 4px 6px -1px rgba(15,23,42,0.08),0 2px 4px -1px rgba(15,23,42,0.04);
+  --shadow-lg:0 10px 15px -3px rgba(15,23,42,0.1),0 4px 6px -2px rgba(15,23,42,0.05);
+  --shadow-xl:0 20px 25px -5px rgba(15,23,42,0.12),0 10px 10px -5px rgba(15,23,42,0.04);
+  --shadow-glow:0 0 40px rgba(0,82,255,0.15);
+  --blur-glass:blur(40px) saturate(180%);
+  --blur-light:blur(20px) saturate(150%);
+}
+body{
+  font-family:'Inter',system-ui,-apple-system,sans-serif;
+  background:#FAFBFE;
+  background-image:
+    radial-gradient(circle at 20% 10%,rgba(0,82,255,0.03) 0%,transparent 50%),
+    radial-gradient(circle at 80% 90%,rgba(124,58,237,0.03) 0%,transparent 50%);
+  color:var(--text-primary);
+  min-height:100vh;
+  line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+.glass{
+  background:rgba(255,255,255,0.7);
+  backdrop-filter:blur(40px) saturate(180%);
+  -webkit-backdrop-filter:blur(40px) saturate(180%);
+  border:1px solid rgba(148,163,184,0.2);
+}
+.glass-strong{
+  background:rgba(255,255,255,0.85);
+  backdrop-filter:blur(60px) saturate(200%);
+  -webkit-backdrop-filter:blur(60px) saturate(200%);
+}
+.header{
+  position:sticky;
+  top:0;
+  z-index:100;
+  background:rgba(255,255,255,0.85);
+  backdrop-filter:blur(60px) saturate(200%);
+  -webkit-backdrop-filter:blur(60px) saturate(200%);
+  border-bottom:1px solid rgba(148,163,184,0.2);
+  box-shadow:var(--shadow-md);
+}
+.header-inner{
+  max-width:1600px;
+  margin:0 auto;
+  padding:0 32px;
+  height:72px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+}
+.brand{
+  display:flex;
+  align-items:baseline;
+  gap:6px;
+}
+.brand-name{
+  font-family:'Calistoga',serif;
+  font-size:32px;
+  font-weight:400;
+  background:linear-gradient(135deg,var(--electric-blue) 0%,var(--electric-blue-end) 100%);
+  -webkit-background-clip:text;
+  -webkit-text-fill-color:transparent;
+  background-clip:text;
+  letter-spacing:-1px;
+}
+.brand-dot{
+  font-size:32px;
+  color:var(--amber);
+  font-weight:700;
+}
+.brand-sub{
+  font-family:'JetBrains Mono',monospace;
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:2px;
+  color:var(--text-muted);
+  font-weight:700;
+  margin-left:8px;
+}
+.header-stats{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:32px;
+}
+.stat-pill{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:10px 20px;
+  background:rgba(0,82,255,0.05);
+  border:1px solid rgba(0,82,255,0.15);
+  border-radius:999px;
+  transition:all 0.3s cubic-bezier(0.4,0,0.2,1);
+}
+.stat-pill:hover{
+  background:rgba(0,82,255,0.1);
+  transform:translateY(-2px);
+  box-shadow:var(--shadow-md);
+}
+.stat-icon{
+  font-size:20px;
+}
+.stat-value{
+  font-family:'JetBrains Mono',monospace;
+  font-size:24px;
+  font-weight:700;
+  line-height:1;
+  background:linear-gradient(135deg,var(--electric-blue),var(--electric-blue-end));
+  -webkit-background-clip:text;
+  -webkit-text-fill-color:transparent;
+  background-clip:text;
+}
+.stat-label{
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:1px;
+  color:var(--text-muted);
+  font-weight:600;
+}
+.container{
+  max-width:1600px;
+  margin:0 auto;
+  padding:32px;
+  display:grid;
+  grid-template-columns:480px 1fr;
+  gap:24px;
+  align-items:start;
+}
+.bento-card{
+  background:rgba(255,255,255,0.7);
+  backdrop-filter:blur(40px) saturate(180%);
+  -webkit-backdrop-filter:blur(40px) saturate(180%);
+  border:1px solid rgba(148,163,184,0.2);
+  border-radius:24px;
+  padding:0;
+  overflow:hidden;
+  transition:all 0.4s cubic-bezier(0.4,0,0.2,1);
+  box-shadow:var(--shadow-lg);
+  position:relative;
+}
+.bento-card::before{
+  content:'';
+  position:absolute;
+  top:0;
+  left:0;
+  right:0;
+  height:2px;
+  background:linear-gradient(90deg,var(--electric-blue),var(--electric-blue-end));
+  opacity:0;
+  transition:opacity 0.3s;
+}
+.bento-card:hover::before{
+  opacity:1;
+}
+.bento-card:hover{
+  transform:translateY(-4px);
+  box-shadow:var(--shadow-xl),var(--shadow-glow);
+  border-color:rgba(0,82,255,0.3);
+}
+.card-header{
+  padding:24px 28px;
+  border-bottom:1px solid rgba(148,163,184,0.15);
+  background:linear-gradient(to bottom,rgba(255,255,255,0.5),transparent);
+}
+.card-title{
+  font-size:18px;
+  font-weight:800;
+  color:var(--text-primary);
+  display:flex;
+  align-items:center;
+  gap:10px;
+  letter-spacing:-0.5px;
+}
+.card-icon{
+  font-size:24px;
+  filter:drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+}
+.card-body{
+  padding:28px;
+}
+.search-grid{
+  display:grid;
+  gap:18px;
+}
+.form-group{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+.form-label{
+  font-size:12px;
+  font-weight:700;
+  text-transform:uppercase;
+  letter-spacing:1px;
+  color:var(--text-muted);
+}
+.form-input,.form-select{
+  padding:14px 18px;
+  border:1.5px solid rgba(148,163,184,0.25);
+  border-radius:12px;
+  font-size:15px;
+  font-family:'Inter',sans-serif;
+  color:var(--text-primary);
+  background:rgba(255,255,255,0.8);
+  transition:all 0.25s cubic-bezier(0.4,0,0.2,1);
+  font-weight:500;
+}
+.form-input:focus,.form-select:focus{
+  outline:none;
+  border-color:var(--electric-blue);
+  box-shadow:0 0 0 4px rgba(0,82,255,0.1),var(--shadow-md);
+  transform:translateY(-1px);
+}
+.form-input::placeholder{
+  color:var(--text-light);
+  font-weight:400;
+}
+.form-row{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:14px;
+}
+.btn{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  padding:16px 24px;
+  border-radius:12px;
+  font-size:15px;
+  font-weight:700;
+  text-transform:none;
+  letter-spacing:0.3px;
+  cursor:pointer;
+  border:none;
+  transition:all 0.3s cubic-bezier(0.4,0,0.2,1);
+  position:relative;
+  overflow:hidden;
+}
+.btn::before{
+  content:'';
+  position:absolute;
+  top:50%;
+  left:50%;
+  width:0;
+  height:0;
+  border-radius:50%;
+  background:rgba(255,255,255,0.3);
+  transform:translate(-50%,-50%);
+  transition:width 0.5s,height 0.5s;
+}
+.btn:hover::before{
+  width:300px;
+  height:300px;
+}
+.btn:active{
+  transform:scale(0.97);
+}
+.btn-primary{
+  background:linear-gradient(135deg,var(--electric-blue) 0%,var(--electric-blue-end) 100%);
+  color:#fff;
+  box-shadow:0 4px 12px rgba(0,82,255,0.25);
+  width:100%;
+}
+.btn-primary:hover{
+  box-shadow:0 8px 24px rgba(0,82,255,0.35),var(--shadow-glow);
+  transform:translateY(-2px);
+}
+.btn-danger{
+  background:rgba(220,38,38,0.1);
+  color:var(--red);
+  padding:8px 14px;
+  font-size:13px;
+  border-radius:8px;
+}
+.btn-danger:hover{
+  background:rgba(220,38,38,0.2);
+}
+.info-card{
+  background:linear-gradient(135deg,rgba(0,82,255,0.05),rgba(77,124,255,0.05));
+  border-left:3px solid var(--electric-blue);
+  padding:16px 18px;
+  border-radius:12px;
+  font-size:13px;
+  line-height:1.7;
+  color:var(--text-primary);
+  margin-bottom:20px;
+}
+.info-card strong{
+  font-weight:800;
+  color:var(--electric-blue);
+  display:block;
+  margin-bottom:6px;
+}
+.keyword-list,.dest-list{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+.keyword-item,.dest-item{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:16px 18px;
+  background:rgba(255,255,255,0.6);
+  border:1px solid rgba(148,163,184,0.2);
+  border-radius:16px;
+  transition:all 0.3s cubic-bezier(0.4,0,0.2,1);
+  gap:14px;
+  position:relative;
+  overflow:hidden;
+}
+.keyword-item::before,.dest-item::before{
+  content:'';
+  position:absolute;
+  left:0;
+  top:0;
+  bottom:0;
+  width:4px;
+  background:linear-gradient(to bottom,var(--electric-blue),var(--electric-blue-end));
+  transform:scaleY(0);
+  transition:transform 0.3s cubic-bezier(0.4,0,0.2,1);
+}
+.keyword-item:hover::before,.dest-item:hover::before{
+  transform:scaleY(1);
+}
+.keyword-item:hover,.dest-item:hover{
+  background:rgba(255,255,255,0.9);
+  box-shadow:var(--shadow-md);
+  transform:translateX(4px);
+}
+.keyword-info,.dest-info{
+  flex:1;
+  min-width:0;
+}
+.keyword-title{
+  font-weight:700;
+  font-size:15px;
+  color:var(--text-primary);
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-bottom:5px;
+}
+.keyword-meta{
+  font-size:11px;
+  color:var(--text-muted);
+  font-family:'JetBrains Mono',monospace;
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+.badge{
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  padding:4px 10px;
+  border-radius:6px;
+  font-size:10px;
+  font-weight:800;
+  text-transform:uppercase;
+  letter-spacing:0.5px;
+}
+.badge-alerta{
+  background:var(--amber-glass);
+  color:#92400E;
+  border:1px solid rgba(245,158,11,0.3);
+}
+.badge-diario{
+  background:rgba(0,82,255,0.08);
+  color:var(--electric-blue);
+  border:1px solid rgba(0,82,255,0.2);
+}
+.empty{
+  text-align:center;
+  padding:60px 24px;
+  color:var(--text-light);
+}
+.empty-icon{
+  font-size:56px;
+  opacity:0.25;
+  margin-bottom:14px;
+  filter:grayscale(1);
+}
+.empty p{
+  font-size:14px;
+  font-weight:500;
+}
+.timeline{
+  display:grid;
+  gap:16px;
+  max-height:calc(100vh - 200px);
+  overflow-y:auto;
+  padding-right:8px;
+}
+.timeline::-webkit-scrollbar{
+  width:6px;
+}
+.timeline::-webkit-scrollbar-track{
+  background:transparent;
+}
+.timeline::-webkit-scrollbar-thumb{
+  background:rgba(148,163,184,0.3);
+  border-radius:3px;
+}
+.timeline::-webkit-scrollbar-thumb:hover{
+  background:rgba(148,163,184,0.5);
+}
+.timeline-item{
+  padding:20px 24px;
+  background:rgba(255,255,255,0.6);
+  border:1px solid rgba(148,163,184,0.2);
+  border-radius:16px;
+  transition:all 0.35s cubic-bezier(0.4,0,0.2,1);
+  cursor:pointer;
+  position:relative;
+  overflow:hidden;
+  text-decoration:none;
+  color:inherit;
+  display:block;
+}
+.timeline-item::before{
+  content:'';
+  position:absolute;
+  left:0;
+  top:0;
+  bottom:0;
+  width:5px;
+  background:linear-gradient(to bottom,var(--electric-blue),var(--electric-blue-end));
+  transform:scaleY(0);
+  transition:transform 0.3s cubic-bezier(0.4,0,0.2,1);
+}
+.timeline-item:hover::before{
+  transform:scaleY(1);
+}
+.timeline-item:hover{
+  background:rgba(255,255,255,0.95);
+  box-shadow:var(--shadow-lg);
+  transform:translateX(6px) scale(1.01);
+  border-color:rgba(0,82,255,0.3);
+}
+.timeline-header{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  margin-bottom:14px;
+  gap:16px;
+}
+.timeline-keyword{
+  font-weight:800;
+  font-size:17px;
+  color:var(--text-primary);
+  flex:1;
+  line-height:1.3;
+  letter-spacing:-0.3px;
+}
+.timeline-badges{
+  display:flex;
+  gap:8px;
+  flex-shrink:0;
+}
+.badge-modo-manual{
+  background:rgba(100,116,139,0.1);
+  color:var(--text-muted);
+  border:1px solid rgba(100,116,139,0.2);
+}
+.badge-modo-alerta{
+  background:var(--amber-glass);
+  color:#92400E;
+  border:1px solid rgba(245,158,11,0.3);
+}
+.badge-modo-diario{
+  background:rgba(0,82,255,0.08);
+  color:var(--electric-blue);
+  border:1px solid rgba(0,82,255,0.2);
+}
+.timeline-stats{
+  display:flex;
+  gap:20px;
+  margin-bottom:12px;
+}
+.timeline-stat{
+  display:flex;
+  align-items:baseline;
+  gap:6px;
+  font-size:13px;
+}
+.timeline-stat-value{
+  font-family:'JetBrains Mono',monospace;
+  font-weight:700;
+  font-size:20px;
+  background:linear-gradient(135deg,var(--electric-blue),var(--electric-blue-end));
+  -webkit-background-clip:text;
+  -webkit-text-fill-color:transparent;
+  background-clip:text;
+}
+.timeline-stat-label{
+  color:var(--text-muted);
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:0.5px;
+  font-weight:600;
+}
+.timeline-footer{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  font-size:11px;
+  color:var(--text-light);
+  padding-top:12px;
+  border-top:1px solid rgba(148,163,184,0.15);
+  font-family:'JetBrains Mono',monospace;
+}
+.timeline-status{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  font-weight:600;
+}
+.status-dot{
+  width:8px;
+  height:8px;
+  border-radius:50%;
+  animation:pulse 2s cubic-bezier(0.4,0,0.6,1) infinite;
+}
+.status-sent{
+  background:var(--green);
+  box-shadow:0 0 8px rgba(5,150,105,0.5);
+}
+.status-pending{
+  background:var(--text-light);
+}
+@keyframes pulse{
+  0%,100%{opacity:1}
+  50%{opacity:0.5}
+}
+.left-column{
+  display:grid;
+  gap:24px;
+}
+@media(max-width:1280px){
+  .container{
+    grid-template-columns:1fr;
+    gap:20px;
+  }
+  .header-stats{
+    display:none;
+  }
+}
+@media(max-width:768px){
+  .header-inner{
+    padding:0 20px;
+    height:64px;
+  }
+  .brand-name{
+    font-size:26px;
+  }
+  .brand-sub{
+    display:none;
+  }
+  .container{
+    padding:20px;
+  }
+  .card-body{
+    padding:20px;
+  }
+  .form-row{
+    grid-template-columns:1fr;
+  }
+  .timeline{
+    max-height:none;
+  }
+}
 </style>
 </head>
 <body>
-<div class="topbar">
-  <div class="brand">Métrica<span>.</span> Monitor</div>
-  <div class="meta">Panel interno · Lima, Perú</div>
+
+<div class="header">
+  <div class="header-inner">
+    <div class="brand">
+      <span class="brand-name">Métrica</span>
+      <span class="brand-dot">.</span>
+      <span class="brand-sub">Intelligence</span>
+    </div>
+    <div class="header-stats">
+      <div class="stat-pill">
+        <div>
+          <div class="stat-value">{{ keywords|length }}</div>
+          <div class="stat-label">Keywords</div>
+        </div>
+        <span class="stat-icon">📌</span>
+      </div>
+      <div class="stat-pill">
+        <div>
+          <div class="stat-value">{{ destinatarios|length }}</div>
+          <div class="stat-label">Recipients</div>
+        </div>
+        <span class="stat-icon">✉️</span>
+      </div>
+      <div class="stat-pill">
+        <div>
+          <div class="stat-value">{{ historial|length }}</div>
+          <div class="stat-label">Reports</div>
+        </div>
+        <span class="stat-icon">📊</span>
+      </div>
+    </div>
+  </div>
 </div>
 
-<div class="wrap">
-  <div>
-
+<div class="container">
+  <div class="left-column">
     <!-- BÚSQUEDA MANUAL -->
-    <div class="card">
-      <div class="ctitle">🔍 Búsqueda por fechas</div>
-      <form method="POST" action="/buscar">
-        <div class="fr">
-          <label>Keyword o persona</label>
-          <input type="text" name="keyword" placeholder='"Luz del Sur" OR crisis' required>
+    <div class="bento-card">
+      <div class="card-header">
+        <div class="card-title">
+          <span class="card-icon">🔍</span>
+          Manual Search
         </div>
-        <div class="fr2">
-          <div><label>Desde</label><input type="date" name="fecha_inicio"></div>
-          <div><label>Hasta</label><input type="date" name="fecha_fin"></div>
-        </div>
-        <div class="fr">
-          <label>Máx. resultados</label>
-          <select name="num_resultados">
-            <option value="10">10</option>
-            <option value="20" selected>20</option>
-            <option value="50">50</option>
-            <option value="100">100</option>
-          </select>
-        </div>
-        <button type="submit" class="btn bp">Buscar ahora</button>
-      </form>
+      </div>
+      <div class="card-body">
+        <form method="POST" action="/buscar">
+          <div class="search-grid">
+            <div class="form-group">
+              <label class="form-label">Keyword or Entity</label>
+              <input type="text" name="keyword" class="form-input" placeholder='"Luz del Sur" OR crisis energética' required>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">From</label>
+                <input type="date" name="fecha_inicio" class="form-input">
+              </div>
+              <div class="form-group">
+                <label class="form-label">To</label>
+                <input type="date" name="fecha_fin" class="form-input">
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Max Results</label>
+              <select name="num_resultados" class="form-select">
+                <option value="10">10 results</option>
+                <option value="20" selected>20 results</option>
+                <option value="50">50 results</option>
+                <option value="100">100 results</option>
+              </select>
+            </div>
+            <button type="submit" class="btn btn-primary">Execute Search</button>
+          </div>
+        </form>
+      </div>
     </div>
 
     <!-- KEYWORDS PERMANENTES -->
-    <div class="card">
-      <div class="ctitle">📌 Keywords permanentes</div>
-      <div class="info-box">
-        <b>⚡ Alerta inmediata:</b> busca cada pocos minutos. Solo manda email cuando aparece una noticia nueva. Si no hay nada nuevo, no gasta nada.<br>
-        <b>📅 Resumen diario:</b> un solo email a las 12pm con todo lo del día + análisis de tono.
+    <div class="bento-card">
+      <div class="card-header">
+        <div class="card-title">
+          <span class="card-icon">⚡</span>
+          Active Keywords
+        </div>
       </div>
-      <form method="POST" action="/keywords/agregar" style="margin-bottom:10px">
-        <div class="fr">
-          <label>Keyword</label>
-          <input type="text" name="keyword" placeholder='Ej: "Kallpa" +crisis' required>
+      <div class="card-body">
+        <div class="info-card">
+          <strong>⚡ Instant Alert:</strong> Scans every X minutes. Sends email only when new mentions appear.<br>
+          <strong>📅 Daily Digest:</strong> Single email at 12pm with all daily mentions + sentiment analysis.
         </div>
-        <div class="fr2">
-          <div>
-            <label>Modo</label>
-            <select name="modo" id="modo-sel" onchange="toggleFreq(this.value)">
-              <option value="alerta">⚡ Alerta inmediata</option>
-              <option value="diario" selected>📅 Resumen diario</option>
-            </select>
-          </div>
-          <div id="freq-wrap">
-            <label>Frecuencia</label>
-            <select name="frecuencia_horas" id="freq-sel">
-              <option value="5">Cada 5 min</option>
-              <option value="10">Cada 10 min</option>
-              <option value="15" selected>Cada 15 min</option>
-            </select>
-          </div>
-        </div>
-        <button type="submit" class="btn bp">Agregar keyword</button>
-      </form>
 
-      {% if keywords %}
-        {% for kw in keywords %}
-        <div class="li">
-          <div style="min-width:0;flex:1;overflow:hidden">
-            <div class="lil">
-              {% if kw.modo == 'alerta' %}<span class="badge ba">⚡</span>
-              {% else %}<span class="badge bd2">📅</span>{% endif %}
-              &nbsp;{{ kw.keyword }}
+        <form method="POST" action="/keywords/agregar" style="margin-bottom:22px">
+          <div class="search-grid">
+            <div class="form-group">
+              <label class="form-label">Keyword</label>
+              <input type="text" name="keyword" class="form-input" placeholder='e.g. "Kallpa" +crisis' required>
             </div>
-            <div class="lim">
-              {% if kw.modo == 'alerta' %}c/{{ kw.frecuencia_horas }} min
-              {% else %}diario 12pm{% endif %}
-              · desde {{ kw.creada_en[:10] }}
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Mode</label>
+                <select name="modo" id="modo-sel" class="form-select" onchange="toggleFreq(this.value)">
+                  <option value="alerta">⚡ Instant Alert</option>
+                  <option value="diario" selected>📅 Daily Digest</option>
+                </select>
+              </div>
+              <div class="form-group" id="freq-wrap">
+                <label class="form-label">Frequency</label>
+                <select name="frecuencia_horas" id="freq-sel" class="form-select">
+                  <option value="5">Every 5 min</option>
+                  <option value="10">Every 10 min</option>
+                  <option value="15" selected>Every 15 min</option>
+                </select>
+              </div>
             </div>
+            <button type="submit" class="btn btn-primary">Add Keyword</button>
           </div>
-          <form method="POST" action="/keywords/eliminar">
-            <input type="hidden" name="keyword_id" value="{{ kw.id }}">
-            <button class="btn bd" onclick="return confirm('¿Eliminar?')">✕</button>
-          </form>
-        </div>
-        {% endfor %}
-      {% else %}
-        <div class="empty">Sin keywords permanentes aún</div>
-      {% endif %}
+        </form>
+
+        {% if keywords %}
+          <div class="keyword-list">
+            {% for kw in keywords %}
+            <div class="keyword-item">
+              <div class="keyword-info">
+                <div class="keyword-title">
+                  {% if kw.modo == 'alerta' %}
+                    <span class="badge badge-alerta">⚡ ALERT</span>
+                  {% else %}
+                    <span class="badge badge-diario">📅 DAILY</span>
+                  {% endif %}
+                  {{ kw.keyword }}
+                </div>
+                <div class="keyword-meta">
+                  {% if kw.modo == 'alerta' %}
+                    Every {{ kw.frecuencia_horas }} min
+                  {% else %}
+                    Daily at 12:00pm
+                  {% endif %}
+                  · Since {{ kw.creada_en[:10] }}
+                </div>
+              </div>
+              <form method="POST" action="/keywords/eliminar" style="margin:0">
+                <input type="hidden" name="keyword_id" value="{{ kw.id }}">
+                <button class="btn btn-danger" onclick="return confirm('Delete this keyword?')">✕</button>
+              </form>
+            </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="empty">
+            <div class="empty-icon">📌</div>
+            <p>No active keywords yet</p>
+          </div>
+        {% endif %}
+      </div>
     </div>
 
     <!-- DESTINATARIOS -->
-    <div class="card">
-      <div class="ctitle">✉️ Destinatarios del email</div>
-      <form method="POST" action="/destinatarios/agregar" style="margin-bottom:10px">
-        <div class="fr">
-          <label>Email</label>
-          <input type="email" name="email" placeholder="correo@metrica.pe" required>
+    <div class="bento-card">
+      <div class="card-header">
+        <div class="card-title">
+          <span class="card-icon">✉️</span>
+          Email Recipients
         </div>
-        <button type="submit" class="btn bp">Agregar</button>
-      </form>
-      {% if destinatarios %}
-        {% for d in destinatarios %}
-        <div class="li">
-          <span class="lil">{{ d.email }}</span>
-          <form method="POST" action="/destinatarios/eliminar">
-            <input type="hidden" name="dest_id" value="{{ d.id }}">
-            <button class="btn bd" onclick="return confirm('¿Eliminar?')">✕</button>
-          </form>
-        </div>
-        {% endfor %}
-      {% else %}
-        <div class="empty">Sin destinatarios</div>
-      {% endif %}
-    </div>
+      </div>
+      <div class="card-body">
+        <form method="POST" action="/destinatarios/agregar" style="margin-bottom:22px">
+          <div class="search-grid">
+            <div class="form-group">
+              <label class="form-label">Email Address</label>
+              <input type="email" name="email" class="form-input" placeholder="user@metrica.pe" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Add Recipient</button>
+          </div>
+        </form>
 
+        {% if destinatarios %}
+          <div class="dest-list">
+            {% for d in destinatarios %}
+            <div class="dest-item">
+              <div class="dest-info" style="font-weight:600;color:var(--text-primary)">{{ d.email }}</div>
+              <form method="POST" action="/destinatarios/eliminar" style="margin:0">
+                <input type="hidden" name="dest_id" value="{{ d.id }}">
+                <button class="btn btn-danger" onclick="return confirm('Remove this recipient?')">✕</button>
+              </form>
+            </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="empty">
+            <div class="empty-icon">✉️</div>
+            <p>No recipients configured</p>
+          </div>
+        {% endif %}
+      </div>
+    </div>
   </div>
 
-  <!-- HISTORIAL -->
+  <!-- TIMELINE DE HISTORIAL -->
   <div>
-    <div class="card">
-      <div class="ctitle">📋 Historial de reportes</div>
-      {% if historial %}
-        {% for h in historial %}
-        <div class="hist">
-          <span class="bm-{{ h.modo }}">{{ h.modo.upper() }}</span>
-          <span class="hkw">{{ h.keyword }}</span>
-          <span class="hn">{{ h.total_resultados }}</span>
-          <span class="hd">{{ h.ejecutado_en[:16].replace('T',' ') }}</span>
-          {% if h.email_enviado %}<span class="hok">✓</span>
-          {% else %}<span class="hno">—</span>{% endif %}
-          <a href="/historial/{{ h.id }}" target="_blank"
-             class="btn bs" style="padding:3px 9px;font-size:11px">Ver</a>
+    <div class="bento-card" style="height:calc(100vh - 136px)">
+      <div class="card-header">
+        <div class="card-title">
+          <span class="card-icon">📊</span>
+          Report Timeline
         </div>
-        {% endfor %}
-      {% else %}
-        <div class="empty" style="padding:60px 0">
-          Aún no hay reportes generados.<br>
-          Haz una búsqueda manual o agrega keywords permanentes.
-        </div>
-      {% endif %}
+      </div>
+      <div class="card-body" style="height:calc(100% - 73px);overflow:hidden;padding:20px">
+        {% if historial %}
+          <div class="timeline">
+            {% for h in historial %}
+            <a href="/historial/{{ h.id }}" target="_blank" class="timeline-item">
+              <div class="timeline-header">
+                <div class="timeline-keyword">{{ h.keyword }}</div>
+                <div class="timeline-badges">
+                  {% if h.modo == 'alerta' %}
+                    <span class="badge badge-modo-alerta">ALERT</span>
+                  {% elif h.modo == 'diario' %}
+                    <span class="badge badge-modo-diario">DAILY</span>
+                  {% else %}
+                    <span class="badge badge-modo-manual">MANUAL</span>
+                  {% endif %}
+                </div>
+              </div>
+              
+              <div class="timeline-stats">
+                <div class="timeline-stat">
+                  <span class="timeline-stat-value">{{ h.total_resultados }}</span>
+                  <span class="timeline-stat-label">mentions</span>
+                </div>
+              </div>
+
+              <div class="timeline-footer">
+                <div>{{ h.ejecutado_en[:16].replace('T',' ') }}</div>
+                <div class="timeline-status">
+                  {% if h.email_enviado %}
+                    <span class="status-dot status-sent"></span>
+                    <span>Sent</span>
+                  {% else %}
+                    <span class="status-dot status-pending"></span>
+                    <span>Pending</span>
+                  {% endif %}
+                </div>
+              </div>
+            </a>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="empty">
+            <div class="empty-icon">📊</div>
+            <p>No reports generated yet.<br>Run a manual search or add active keywords.</p>
+          </div>
+        {% endif %}
+      </div>
     </div>
   </div>
 </div>
@@ -194,15 +853,14 @@ input:focus,select:focus{outline:none;border-color:var(--azulc)}
 <script>
 function toggleFreq(modo) {
   const fw = document.getElementById('freq-wrap');
-  const fs = document.getElementById('freq-sel');
   if (modo === 'alerta') {
     fw.style.display = 'block';
-    fs.innerHTML = '<option value="5">Cada 5 min</option><option value="10">Cada 10 min</option><option value="15" selected>Cada 15 min</option>';
   } else {
     fw.style.display = 'none';
   }
 }
 toggleFreq(document.getElementById('modo-sel').value);
 </script>
+
 </body>
 </html>
