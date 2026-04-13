@@ -4,1224 +4,253 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Métrica Monitor · Intelligence Platform</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&family=IBM+Plex+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-
-:root{
-  --black:#0A0A0A;
-  --charcoal:#1A1A1A;
-  --graphite:#2A2A2A;
-  --steel:#404040;
-  --silver:#707070;
-  --platinum:#A0A0A0;
-  --white:#FFFFFF;
-  --accent:#D4AF37;
-  --accent-light:#E8D4A0;
-  --red:#E63946;
-  --green:#06D6A0;
-  --blue:#118AB2;
-}
-
-body{
-  font-family:'Montserrat',sans-serif;
-  background:#0A0A0A;
-  color:var(--white);
-  min-height:100vh;
-  overflow-x:hidden;
-  -webkit-font-smoothing:antialiased;
-}
-
-body::before{
-  content:'';
-  position:fixed;
-  top:0;
-  left:0;
-  width:100%;
-  height:100%;
-  background:
-    radial-gradient(circle at 20% 80%, rgba(212,175,55,0.08) 0%, transparent 50%),
-    radial-gradient(circle at 80% 20%, rgba(17,138,178,0.06) 0%, transparent 50%);
-  pointer-events:none;
-  z-index:0;
-}
-
-.floating{
-  animation:float 6s ease-in-out infinite;
-}
-
-@keyframes float{
-  0%,100%{transform:translateY(0px) rotate(0deg)}
-  50%{transform:translateY(-20px) rotate(2deg)}
-}
-
-.glow{
-  animation:glow 4s ease-in-out infinite alternate;
-}
-
-@keyframes glow{
-  from{box-shadow:0 0 20px rgba(212,175,55,0.3),0 0 40px rgba(212,175,55,0.1)}
-  to{box-shadow:0 0 40px rgba(212,175,55,0.5),0 0 80px rgba(212,175,55,0.2)}
-}
-
-@keyframes search-pulse{
-  0%,100%{transform:scale(1);opacity:1}
-  50%{transform:scale(1.1);opacity:0.8}
-}
-
-.navbar{
-  position:fixed;
-  top:0;
-  left:0;
-  right:0;
-  z-index:1000;
-  padding:24px 0;
-  background:rgba(10,10,10,0.8);
-  backdrop-filter:blur(20px) saturate(120%);
-  -webkit-backdrop-filter:blur(20px) saturate(120%);
-  border-bottom:1px solid rgba(255,255,255,0.05);
-  transition:all 0.4s cubic-bezier(0.4,0,0.2,1);
-}
-
-.navbar.scrolled{
-  padding:16px 0;
-  background:rgba(10,10,10,0.95);
-  border-bottom:1px solid rgba(212,175,55,0.2);
-}
-
-.nav-inner{
-  max-width:1800px;
-  margin:0 auto;
-  padding:0 48px;
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-}
-
-.brand{
-  display:flex;
-  align-items:center;
-  gap:16px;
-  position:relative;
-}
-
-.brand-logo{
-  font-size:32px;
-  font-weight:900;
-  letter-spacing:-1px;
-  background:linear-gradient(135deg,var(--white) 0%,var(--platinum) 100%);
-  -webkit-background-clip:text;
-  -webkit-text-fill-color:transparent;
-  background-clip:text;
-  position:relative;
-}
-
-.brand-logo::after{
-  content:'®';
-  position:absolute;
-  top:-8px;
-  right:-20px;
-  font-size:12px;
-  color:var(--accent);
-  font-weight:600;
-}
-
-.brand-line{
-  width:1px;
-  height:32px;
-  background:linear-gradient(to bottom,transparent,var(--accent),transparent);
-}
-
-.brand-subtitle{
-  font-family:'IBM Plex Mono',monospace;
-  font-size:10px;
-  font-weight:600;
-  letter-spacing:3px;
-  text-transform:uppercase;
-  color:var(--accent);
-}
-
-.nav-stats{
-  display:flex;
-  gap:32px;
-}
-
-.stat-box{
-  padding:12px 20px;
-  background:linear-gradient(135deg,rgba(212,175,55,0.1),rgba(212,175,55,0.05));
-  border:1px solid rgba(212,175,55,0.3);
-  border-radius:8px;
-  transition:all 0.3s;
-  position:relative;
-  overflow:hidden;
-}
-
-.stat-box::before{
-  content:'';
-  position:absolute;
-  top:0;
-  left:-100%;
-  width:100%;
-  height:100%;
-  background:linear-gradient(90deg,transparent,rgba(212,175,55,0.2),transparent);
-  transition:left 0.5s;
-}
-
-.stat-box:hover::before{
-  left:100%;
-}
-
-.stat-box:hover{
-  border-color:var(--accent);
-  transform:translateY(-2px);
-}
-
-.stat-value{
-  font-family:'IBM Plex Mono',monospace;
-  font-size:28px;
-  font-weight:700;
-  line-height:1;
-  color:var(--accent);
-}
-
-.stat-label{
-  font-size:9px;
-  letter-spacing:2px;
-  text-transform:uppercase;
-  color:var(--silver);
-  margin-top:4px;
-  font-weight:600;
-}
-
-.hero{
-  min-height:100vh;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  position:relative;
-  overflow:hidden;
-  padding:120px 48px 80px;
-}
-
-.hero::before{
-  content:'';
-  position:absolute;
-  top:50%;
-  left:50%;
-  transform:translate(-50%,-50%);
-  width:800px;
-  height:800px;
-  background:radial-gradient(circle,rgba(212,175,55,0.15) 0%,transparent 70%);
-  animation:pulse 8s ease-in-out infinite;
-}
-
-@keyframes pulse{
-  0%,100%{transform:translate(-50%,-50%) scale(1);opacity:0.5}
-  50%{transform:translate(-50%,-50%) scale(1.2);opacity:0.8}
-}
-
-.hero-content{
-  position:relative;
-  z-index:10;
-  text-align:center;
-  max-width:1400px;
-}
-
-.hero-tag{
-  font-family:'IBM Plex Mono',monospace;
-  font-size:11px;
-  letter-spacing:4px;
-  text-transform:uppercase;
-  color:var(--accent);
-  margin-bottom:24px;
-  font-weight:600;
-}
-
-.hero-title{
-  font-size:clamp(48px,8vw,96px);
-  font-weight:900;
-  line-height:1.1;
-  letter-spacing:-3px;
-  margin-bottom:32px;
-  background:linear-gradient(135deg,var(--white) 0%,var(--platinum) 100%);
-  -webkit-background-clip:text;
-  -webkit-text-fill-color:transparent;
-  background-clip:text;
-}
-
-.hero-subtitle{
-  font-size:clamp(16px,2vw,24px);
-  color:var(--silver);
-  font-weight:400;
-  line-height:1.6;
-  max-width:800px;
-  margin:0 auto 48px;
-}
-
-.container{
-  max-width:1800px;
-  margin:0 auto;
-  padding:80px 48px;
-  display:grid;
-  grid-template-columns:560px 1fr;
-  gap:40px;
-  align-items:start;
-  position:relative;
-  z-index:10;
-}
-
-.glass-panel{
-  background:linear-gradient(135deg,rgba(26,26,26,0.8),rgba(42,42,42,0.6));
-  backdrop-filter:blur(40px) saturate(150%);
-  -webkit-backdrop-filter:blur(40px) saturate(150%);
-  border:1px solid rgba(255,255,255,0.08);
-  border-radius:16px;
-  padding:0;
-  position:relative;
-  overflow:hidden;
-  transition:all 0.5s cubic-bezier(0.4,0,0.2,1);
-}
-
-.glass-panel::before{
-  content:'';
-  position:absolute;
-  top:0;
-  left:0;
-  right:0;
-  height:1px;
-  background:linear-gradient(90deg,transparent,var(--accent),transparent);
-  opacity:0;
-  transition:opacity 0.3s;
-}
-
-.glass-panel:hover::before{
-  opacity:1;
-}
-
-.glass-panel:hover{
-  border-color:rgba(212,175,55,0.3);
-  transform:translateY(-8px);
-  box-shadow:
-    0 20px 60px rgba(0,0,0,0.4),
-    0 0 80px rgba(212,175,55,0.1),
-    inset 0 1px 0 rgba(255,255,255,0.1);
-}
-
-.panel-header{
-  padding:32px 36px;
-  border-bottom:1px solid rgba(255,255,255,0.05);
-  background:linear-gradient(to bottom,rgba(255,255,255,0.02),transparent);
-}
-
-.panel-title{
-  font-size:18px;
-  font-weight:800;
-  letter-spacing:-0.5px;
-  display:flex;
-  align-items:center;
-  gap:12px;
-  color:var(--white);
-}
-
-.panel-icon{
-  font-size:24px;
-  filter:drop-shadow(0 0 8px rgba(212,175,55,0.5));
-}
-
-.panel-body{
-  padding:36px;
-}
-
-.form-grid{
-  display:grid;
-  gap:24px;
-}
-
-.form-group{
-  display:flex;
-  flex-direction:column;
-  gap:10px;
-}
-
-.form-label{
-  font-size:11px;
-  font-weight:700;
-  letter-spacing:2px;
-  text-transform:uppercase;
-  color:var(--accent);
-  font-family:'IBM Plex Mono',monospace;
-}
-
-.form-input,.form-select{
-  padding:16px 20px;
-  background:rgba(10,10,10,0.6);
-  border:1px solid rgba(255,255,255,0.08);
-  border-radius:10px;
-  color:var(--white);
-  font-size:15px;
-  font-family:'Montserrat',sans-serif;
-  font-weight:500;
-  transition:all 0.3s;
-}
-
-.form-input:focus,.form-select:focus{
-  outline:none;
-  border-color:var(--accent);
-  background:rgba(10,10,10,0.8);
-  box-shadow:0 0 0 4px rgba(212,175,55,0.1),0 8px 24px rgba(0,0,0,0.3);
-}
-
-.form-input::placeholder{
-  color:var(--steel);
-  font-weight:400;
-}
-
-.form-row{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:16px;
-}
-
-.btn{
-  padding:18px 28px;
-  border:none;
-  border-radius:10px;
-  font-size:14px;
-  font-weight:700;
-  letter-spacing:1px;
-  text-transform:uppercase;
-  cursor:pointer;
-  transition:all 0.4s cubic-bezier(0.4,0,0.2,1);
-  position:relative;
-  overflow:hidden;
-  font-family:'Montserrat',sans-serif;
-}
-
-.btn::before{
-  content:'';
-  position:absolute;
-  top:50%;
-  left:50%;
-  width:0;
-  height:0;
-  background:rgba(255,255,255,0.2);
-  border-radius:50%;
-  transform:translate(-50%,-50%);
-  transition:width 0.6s,height 0.6s;
-}
-
-.btn:hover::before{
-  width:400px;
-  height:400px;
-}
-
-.btn-primary{
-  background:linear-gradient(135deg,var(--accent) 0%,var(--accent-light) 100%);
-  color:var(--black);
-  box-shadow:0 8px 24px rgba(212,175,55,0.4);
-  width:100%;
-}
-
-.btn-primary:hover{
-  transform:translateY(-3px);
-  box-shadow:0 12px 32px rgba(212,175,55,0.6);
-}
-
-.btn-primary:active{
-  transform:translateY(-1px);
-}
-
-.btn-delete{
-  padding:10px 16px;
-  background:rgba(230,57,70,0.15);
-  color:var(--red);
-  border:1px solid rgba(230,57,70,0.3);
-  font-size:12px;
-}
-
-.btn-delete:hover{
-  background:rgba(230,57,70,0.25);
-  border-color:var(--red);
-}
-
-.info-banner{
-  background:linear-gradient(135deg,rgba(212,175,55,0.08),rgba(212,175,55,0.03));
-  border-left:3px solid var(--accent);
-  padding:20px 24px;
-  border-radius:10px;
-  font-size:13px;
-  line-height:1.8;
-  color:var(--platinum);
-  margin-bottom:24px;
-}
-
-.info-banner strong{
-  color:var(--accent);
-  font-weight:800;
-  display:block;
-  margin-bottom:8px;
-}
-
-.item-list{
-  display:grid;
-  gap:16px;
-}
-
-.list-item{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  padding:20px 24px;
-  background:rgba(255,255,255,0.02);
-  border:1px solid rgba(255,255,255,0.05);
-  border-radius:12px;
-  transition:all 0.3s;
-  gap:16px;
-  position:relative;
-}
-
-.list-item::before{
-  content:'';
-  position:absolute;
-  left:0;
-  top:0;
-  bottom:0;
-  width:3px;
-  background:var(--accent);
-  transform:scaleY(0);
-  transition:transform 0.3s;
-}
-
-.list-item:hover::before{
-  transform:scaleY(1);
-}
-
-.list-item:hover{
-  background:rgba(255,255,255,0.04);
-  border-color:rgba(212,175,55,0.3);
-  transform:translateX(8px);
-}
-
-.item-content{
-  flex:1;
-  min-width:0;
-}
-
-.item-title{
-  font-weight:700;
-  font-size:15px;
-  display:flex;
-  align-items:center;
-  gap:12px;
-  margin-bottom:6px;
-  color:var(--white);
-}
-
-.item-meta{
-  font-size:11px;
-  color:var(--silver);
-  font-family:'IBM Plex Mono',monospace;
-  font-weight:500;
-}
-
-.badge{
-  padding:5px 12px;
-  border-radius:6px;
-  font-size:9px;
-  font-weight:800;
-  letter-spacing:1px;
-  text-transform:uppercase;
-  font-family:'IBM Plex Mono',monospace;
-}
-
-.badge-alert{
-  background:rgba(212,175,55,0.15);
-  color:var(--accent);
-  border:1px solid rgba(212,175,55,0.4);
-}
-
-.badge-daily{
-  background:rgba(17,138,178,0.15);
-  color:var(--blue);
-  border:1px solid rgba(17,138,178,0.4);
-}
-
-.timeline{
-  display:grid;
-  gap:20px;
-  max-height:calc(100vh - 200px);
-  overflow-y:auto;
-  padding-right:12px;
-}
-
-.timeline::-webkit-scrollbar{
-  width:6px;
-}
-
-.timeline::-webkit-scrollbar-track{
-  background:rgba(255,255,255,0.02);
-  border-radius:3px;
-}
-
-.timeline::-webkit-scrollbar-thumb{
-  background:rgba(212,175,55,0.3);
-  border-radius:3px;
-}
-
-.timeline::-webkit-scrollbar-thumb:hover{
-  background:rgba(212,175,55,0.5);
-}
-
-.timeline-card{
-  padding:28px;
-  background:rgba(255,255,255,0.02);
-  border:1px solid rgba(255,255,255,0.05);
-  border-radius:14px;
-  transition:all 0.4s cubic-bezier(0.4,0,0.2,1);
-  cursor:pointer;
-  position:relative;
-  text-decoration:none;
-  color:inherit;
-  display:block;
-}
-
-.timeline-card::after{
-  content:'';
-  position:absolute;
-  left:0;
-  top:0;
-  bottom:0;
-  width:4px;
-  background:linear-gradient(to bottom,var(--accent),var(--accent-light));
-  transform:scaleY(0);
-  transition:transform 0.3s;
-}
-
-.timeline-card:hover::after{
-  transform:scaleY(1);
-}
-
-.timeline-card:hover{
-  background:rgba(255,255,255,0.04);
-  border-color:rgba(212,175,55,0.3);
-  transform:translateX(12px) scale(1.02);
-  box-shadow:0 12px 40px rgba(0,0,0,0.4);
-}
-
-.timeline-top{
-  display:flex;
-  justify-content:space-between;
-  align-items:flex-start;
-  gap:20px;
-  margin-bottom:16px;
-}
-
-.timeline-keyword{
-  font-size:19px;
-  font-weight:800;
-  letter-spacing:-0.5px;
-  line-height:1.3;
-  flex:1;
-}
-
-.timeline-badges{
-  display:flex;
-  gap:8px;
-}
-
-.badge-mode-manual{
-  background:rgba(112,112,112,0.15);
-  color:var(--silver);
-  border:1px solid rgba(112,112,112,0.3);
-}
-
-.badge-mode-alert{
-  background:rgba(212,175,55,0.15);
-  color:var(--accent);
-  border:1px solid rgba(212,175,55,0.4);
-}
-
-.badge-mode-daily{
-  background:rgba(17,138,178,0.15);
-  color:var(--blue);
-  border:1px solid rgba(17,138,178,0.4);
-}
-
-.timeline-stats{
-  display:flex;
-  gap:24px;
-  margin-bottom:14px;
-}
-
-.timeline-stat{
-  display:flex;
-  align-items:baseline;
-  gap:8px;
-}
-
-.timeline-stat-value{
-  font-family:'IBM Plex Mono',monospace;
-  font-size:24px;
-  font-weight:700;
-  color:var(--accent);
-}
-
-.timeline-stat-label{
-  font-size:10px;
-  letter-spacing:1px;
-  text-transform:uppercase;
-  color:var(--silver);
-  font-weight:600;
-}
-
-.timeline-footer{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  padding-top:14px;
-  border-top:1px solid rgba(255,255,255,0.05);
-  font-size:11px;
-  font-family:'IBM Plex Mono',monospace;
-  color:var(--steel);
-}
-
-.timeline-status{
-  display:flex;
-  align-items:center;
-  gap:8px;
-  font-weight:600;
-}
-
-.status-dot{
-  width:8px;
-  height:8px;
-  border-radius:50%;
-  animation:pulse-dot 2s ease-in-out infinite;
-}
-
-@keyframes pulse-dot{
-  0%,100%{opacity:1;transform:scale(1)}
-  50%{opacity:0.6;transform:scale(0.9)}
-}
-
-.status-sent{
-  background:var(--green);
-  box-shadow:0 0 12px rgba(6,214,160,0.6);
-}
-
-.status-pending{
-  background:var(--steel);
-}
-
-.empty-state{
-  text-align:center;
-  padding:80px 40px;
-  color:var(--steel);
-}
-
-.empty-icon{
-  font-size:72px;
-  opacity:0.2;
-  margin-bottom:20px;
-  filter:grayscale(1);
-}
-
-.empty-text{
-  font-size:15px;
-  font-weight:500;
-  line-height:1.6;
-}
-
-/* LOADING OVERLAY */
-#loading-overlay{
-  display:none;
-  position:fixed;
-  top:0;
-  left:0;
-  width:100%;
-  height:100%;
-  background:rgba(10,10,10,0.98);
-  backdrop-filter:blur(30px);
-  -webkit-backdrop-filter:blur(30px);
-  z-index:99999;
-  align-items:center;
-  justify-content:center;
-}
-
-.loading-content{
-  text-align:center;
-  max-width:600px;
-  padding:48px;
-}
-
-.loading-icon{
-  font-size:64px;
-  margin-bottom:32px;
-  animation:search-pulse 2s ease-in-out infinite;
-}
-
-.loading-title{
-  font-size:28px;
-  font-weight:800;
-  margin-bottom:12px;
-  color:var(--accent);
-  letter-spacing:-0.5px;
-}
-
-.loading-step{
-  font-size:14px;
-  color:var(--silver);
-  margin-bottom:40px;
-  font-family:'IBM Plex Mono',monospace;
-  font-weight:500;
-}
-
-.progress-container{
-  width:100%;
-  height:6px;
-  background:rgba(255,255,255,0.08);
-  border-radius:3px;
-  overflow:hidden;
-  margin-bottom:16px;
-  box-shadow:inset 0 2px 4px rgba(0,0,0,0.3);
-}
-
-.progress-bar{
-  height:100%;
-  background:linear-gradient(90deg,var(--accent) 0%,var(--accent-light) 100%);
-  width:0%;
-  transition:width 0.8s cubic-bezier(0.4,0,0.2,1);
-  box-shadow:0 0 20px rgba(212,175,55,0.5);
-}
-
-.progress-percent{
-  font-family:'IBM Plex Mono',monospace;
-  font-size:15px;
-  color:var(--accent);
-  font-weight:700;
-  margin-bottom:48px;
-}
-
-.loading-steps{
-  text-align:left;
-  font-size:13px;
-  font-family:'IBM Plex Mono',monospace;
-  background:rgba(255,255,255,0.02);
-  border:1px solid rgba(255,255,255,0.05);
-  border-radius:12px;
-  padding:24px;
-}
-
-.loading-step-item{
-  padding:10px 0;
-  color:var(--steel);
-  opacity:0.4;
-  transition:all 0.3s;
-  display:flex;
-  align-items:center;
-  gap:12px;
-}
-
-.step-bullet{
-  width:20px;
-}
-
-@media(max-width:1400px){
-  .container{
-    grid-template-columns:1fr;
-    padding:60px 32px;
-  }
-  .nav-stats{
-    display:none;
-  }
-}
-
-@media(max-width:768px){
-  .nav-inner{
-    padding:0 24px;
-  }
-  .brand-logo{
-    font-size:26px;
-  }
-  .brand-subtitle{
-    display:none;
-  }
-  .hero{
-    padding:100px 24px 60px;
-  }
-  .container{
-    padding:40px 24px;
-  }
-  .panel-body{
-    padding:24px;
-  }
-  .form-row{
-    grid-template-columns:1fr;
-  }
-  .timeline{
-    max-height:none;
-  }
-}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',sans-serif;background:#f5f5f5;color:#1a1a1a;line-height:1.5}
+.header{background:#1E90FF;color:#fff;padding:16px 0;box-shadow:0 2px 8px rgba(0,0,0,0.1);position:sticky;top:0;z-index:100}
+.header-inner{max-width:1600px;margin:0 auto;padding:0 32px;display:flex;align-items:center;justify-content:space-between}
+.logo{font-size:20px;font-weight:800;letter-spacing:-0.5px}
+.stats-bar{display:flex;gap:24px}
+.stat-pill{display:flex;align-items:center;gap:8px;padding:8px 16px;background:rgba(255,255,255,0.15);border-radius:6px;border:1px solid rgba(255,255,255,0.2)}
+.stat-val{font-size:18px;font-weight:800}
+.stat-lbl{font-size:11px;opacity:0.9;text-transform:uppercase;letter-spacing:0.5px}
+.container{max-width:1600px;margin:0 auto;padding:32px;display:grid;grid-template-columns:480px 1fr;gap:24px;align-items:start}
+.panel{background:#fff;border:1px solid #e0e0e0;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.05);margin-bottom:20px}
+.panel-hdr{padding:18px 20px;border-bottom:1px solid #e0e0e0;background:#fafafa}
+.panel-title{font-size:15px;font-weight:800;display:flex;align-items:center;gap:8px;color:#1a1a1a}
+.panel-icon{font-size:18px}
+.panel-body{padding:20px}
+.form-grid{display:grid;gap:16px}
+.form-group{display:flex;flex-direction:column;gap:6px}
+.form-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#6B7280}
+.form-input,.form-select{padding:12px 14px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;font-family:'Inter',sans-serif;color:#1a1a1a;background:#fff;transition:all 0.2s}
+.form-input:focus,.form-select:focus{outline:none;border-color:#1E90FF;box-shadow:0 0 0 3px rgba(30,144,255,0.1)}
+.form-input::placeholder{color:#9CA3AF}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.btn{padding:12px 20px;border-radius:6px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;cursor:pointer;border:none;transition:all 0.2s;font-family:'Inter',sans-serif}
+.btn-primary{background:#1E90FF;color:#fff;width:100%;box-shadow:0 2px 4px rgba(30,144,255,0.2)}
+.btn-primary:hover{background:#1873CC;transform:translateY(-1px);box-shadow:0 4px 8px rgba(30,144,255,0.3)}
+.btn-delete{padding:6px 12px;background:#FEE2E2;color:#DC2626;font-size:11px}
+.btn-delete:hover{background:#FEE}
+.info-box{background:#EFF6FF;border-left:3px solid #1E90FF;padding:14px 16px;border-radius:6px;font-size:12px;line-height:1.6;color:#374151;margin-bottom:16px}
+.info-box strong{color:#1E90FF;font-weight:700;display:block;margin-bottom:4px}
+.list{display:grid;gap:10px}
+.list-item{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:#fafafa;border:1px solid #e5e7eb;border-radius:6px;gap:12px;transition:all 0.2s}
+.list-item:hover{background:#fff;border-color:#1E90FF;box-shadow:0 2px 4px rgba(30,144,255,0.1)}
+.list-content{flex:1;min-width:0}
+.list-title{font-size:14px;font-weight:700;margin-bottom:4px;display:flex;align-items:center;gap:8px}
+.list-meta{font-size:11px;color:#6B7280}
+.badge{padding:3px 8px;border-radius:4px;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.3px}
+.badge-alert{background:#FEF3C7;color:#92400E}
+.badge-daily{background:#DBEAFE;color:#1E40AF}
+.timeline{display:grid;gap:12px;max-height:calc(100vh - 180px);overflow-y:auto;padding-right:8px}
+.timeline::-webkit-scrollbar{width:6px}
+.timeline::-webkit-scrollbar-track{background:#f1f1f1;border-radius:3px}
+.timeline::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:3px}
+.timeline::-webkit-scrollbar-thumb:hover{background:#9CA3AF}
+.timeline-card{padding:16px 18px;background:#fff;border:1px solid #e5e7eb;border-radius:6px;transition:all 0.2s;text-decoration:none;color:inherit;display:block}
+.timeline-card:hover{border-color:#1E90FF;box-shadow:0 2px 8px rgba(30,144,255,0.15);transform:translateY(-1px)}
+.timeline-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:10px}
+.timeline-kw{font-size:15px;font-weight:800;line-height:1.3;flex:1}
+.timeline-badges{display:flex;gap:6px}
+.badge-manual{background:#F3F4F6;color:#4B5563}
+.badge-alerta{background:#FEF3C7;color:#92400E}
+.badge-diario{background:#DBEAFE;color:#1E40AF}
+.timeline-stats{display:flex;gap:16px;margin-bottom:10px}
+.timeline-stat{display:flex;align-items:baseline;gap:4px}
+.timeline-stat-val{font-size:18px;font-weight:800;color:#1E90FF}
+.timeline-stat-lbl{font-size:10px;color:#6B7280;text-transform:uppercase}
+.timeline-foot{display:flex;justify-content:space-between;align-items:center;padding-top:10px;border-top:1px solid #f3f4f6;font-size:11px;color:#6B7280}
+.timeline-status{display:flex;align-items:center;gap:6px}
+.status-dot{width:6px;height:6px;border-radius:50%}
+.status-sent{background:#059669}
+.status-pending{background:#D1D5DB}
+.empty{text-align:center;padding:60px 24px;color:#9CA3AF}
+.empty-icon{font-size:48px;opacity:0.3;margin-bottom:12px}
+.empty-text{font-size:13px}
+#loading{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(255,255,255,0.98);z-index:99999;align-items:center;justify-content:center}
+.loading-box{text-align:center;max-width:500px;padding:40px}
+.loading-icon{font-size:56px;margin-bottom:24px;animation:spin 2s linear infinite}
+@keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+.loading-title{font-size:22px;font-weight:800;color:#1E90FF;margin-bottom:8px}
+.loading-step{font-size:13px;color:#6B7280;margin-bottom:32px}
+.progress-bar-wrap{width:100%;height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden;margin-bottom:12px}
+.progress-bar{height:100%;background:#1E90FF;width:0%;transition:width 0.6s ease}
+.progress-pct{font-size:14px;font-weight:700;color:#1E90FF;margin-bottom:32px}
+.steps{text-align:left;background:#fafafa;border:1px solid #e5e7eb;border-radius:6px;padding:20px}
+.step{padding:8px 0;font-size:12px;color:#9CA3AF;display:flex;align-items:center;gap:10px}
+.step-bullet{width:16px;text-align:center}
+.step.done{color:#059669}
+@media(max-width:1400px){.container{grid-template-columns:1fr;padding:24px}.stats-bar{display:none}}
+@media(max-width:768px){.header-inner{padding:0 20px}.container{padding:16px}.panel-body{padding:16px}.form-row{grid-template-columns:1fr}.timeline{max-height:none}}
 </style>
 </head>
 <body>
-
-<nav class="navbar" id="navbar">
-  <div class="nav-inner">
-    <div class="brand">
-      <div class="brand-logo">MÉTRICA</div>
-      <div class="brand-line"></div>
-      <div class="brand-subtitle">Monitor</div>
-    </div>
-    <div class="nav-stats">
-      <div class="stat-box floating">
-        <div class="stat-value">{{ keywords|length }}</div>
-        <div class="stat-label">Keywords</div>
-      </div>
-      <div class="stat-box floating" style="animation-delay:0.2s">
-        <div class="stat-value">{{ destinatarios|length }}</div>
-        <div class="stat-label">Recipients</div>
-      </div>
-      <div class="stat-box floating" style="animation-delay:0.4s">
-        <div class="stat-value">{{ historial|length }}</div>
-        <div class="stat-label">Reports</div>
-      </div>
-    </div>
-  </div>
-</nav>
-
-<section class="hero">
-  <div class="hero-content">
-    <div class="hero-tag">Intelligence Platform</div>
-    <h1 class="hero-title">Real-Time Media<br>Monitoring</h1>
-    <p class="hero-subtitle">Advanced sentiment analysis and media tracking powered by AI. Monitor your brand reputation across news, social media, and digital channels.</p>
-  </div>
-</section>
-
+<div class="header">
+<div class="header-inner">
+<div class="logo">MÉTRICA</div>
+<div class="stats-bar">
+<div class="stat-pill"><div><div class="stat-val">{{ keywords|length }}</div><div class="stat-lbl">Keywords</div></div></div>
+<div class="stat-pill"><div><div class="stat-val">{{ destinatarios|length }}</div><div class="stat-lbl">Recipients</div></div></div>
+<div class="stat-pill"><div><div class="stat-val">{{ historial|length }}</div><div class="stat-lbl">Reports</div></div></div>
+</div>
+</div>
+</div>
 <div class="container">
-  <div>
-    <div class="glass-panel floating" style="margin-bottom:32px">
-      <div class="panel-header">
-        <div class="panel-title">
-          <span class="panel-icon">🔍</span>
-          Manual Search
-        </div>
-      </div>
-      <div class="panel-body">
-        <form method="POST" action="/buscar" id="search-form">
-          <div class="form-grid">
-            <div class="form-group">
-              <label class="form-label">Query</label>
-              <input type="text" name="keyword" class="form-input" placeholder='"Brand Name" OR crisis' required>
-            </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label class="form-label">From</label>
-                <input type="date" name="fecha_inicio" class="form-input">
-              </div>
-              <div class="form-group">
-                <label class="form-label">To</label>
-                <input type="date" name="fecha_fin" class="form-input">
-              </div>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Results</label>
-              <select name="num_resultados" class="form-select">
-                <option value="10">10 results</option>
-                <option value="20" selected>20 results</option>
-                <option value="50">50 results</option>
-                <option value="100">100 results</option>
-              </select>
-            </div>
-            <button type="submit" class="btn btn-primary">Execute Search</button>
-          </div>
-        </form>
-      </div>
-    </div>
-
-    <div class="glass-panel floating" style="animation-delay:0.2s;margin-bottom:32px">
-      <div class="panel-header">
-        <div class="panel-title">
-          <span class="panel-icon">⚡</span>
-          Active Monitoring
-        </div>
-      </div>
-      <div class="panel-body">
-        <div class="info-banner">
-          <strong>⚡ Instant Alert</strong> Scans every X minutes. Email notification only when new mentions appear.
-          <strong style="margin-top:12px">📅 Daily Digest</strong> Consolidated report at 12pm with sentiment analysis.
-        </div>
-
-        <form method="POST" action="/keywords/agregar" style="margin-bottom:28px">
-          <div class="form-grid">
-            <div class="form-group">
-              <label class="form-label">Keyword</label>
-              <input type="text" name="keyword" class="form-input" placeholder='e.g. "Company Name" +crisis' required>
-            </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label class="form-label">Mode</label>
-                <select name="modo" id="modo-sel" class="form-select" onchange="toggleFreq(this.value)">
-                  <option value="alerta">⚡ Instant</option>
-                  <option value="diario" selected>📅 Daily</option>
-                </select>
-              </div>
-              <div class="form-group" id="freq-wrap">
-                <label class="form-label">Frequency</label>
-                <select name="frecuencia_horas" id="freq-sel" class="form-select">
-                  <option value="5">5 min</option>
-                  <option value="10">10 min</option>
-                  <option value="15" selected>15 min</option>
-                </select>
-              </div>
-            </div>
-            <button type="submit" class="btn btn-primary">Add Keyword</button>
-          </div>
-        </form>
-
-        {% if keywords %}
-          <div class="item-list">
-            {% for kw in keywords %}
-            <div class="list-item">
-              <div class="item-content">
-                <div class="item-title">
-                  {% if kw.modo == 'alerta' %}
-                    <span class="badge badge-alert">⚡ ALERT</span>
-                  {% else %}
-                    <span class="badge badge-daily">📅 DAILY</span>
-                  {% endif %}
-                  {{ kw.keyword }}
-                </div>
-                <div class="item-meta">
-                  {% if kw.modo == 'alerta' %}
-                    Every {{ kw.frecuencia_horas }} min
-                  {% else %}
-                    Daily 12:00pm
-                  {% endif %}
-                  · Active since {{ kw.creada_en[:10] }}
-                </div>
-              </div>
-              <form method="POST" action="/keywords/eliminar">
-                <input type="hidden" name="keyword_id" value="{{ kw.id }}">
-                <button class="btn btn-delete" onclick="return confirm('Remove keyword?')">✕</button>
-              </form>
-            </div>
-            {% endfor %}
-          </div>
-        {% else %}
-          <div class="empty-state">
-            <div class="empty-icon">📌</div>
-            <div class="empty-text">No active keywords</div>
-          </div>
-        {% endif %}
-      </div>
-    </div>
-
-    <div class="glass-panel floating" style="animation-delay:0.4s">
-      <div class="panel-header">
-        <div class="panel-title">
-          <span class="panel-icon">✉️</span>
-          Recipients
-        </div>
-      </div>
-      <div class="panel-body">
-        <form method="POST" action="/destinatarios/agregar" style="margin-bottom:28px">
-          <div class="form-grid">
-            <div class="form-group">
-              <label class="form-label">Email</label>
-              <input type="email" name="email" class="form-input" placeholder="user@metrica.pe" required>
-            </div>
-            <button type="submit" class="btn btn-primary">Add Recipient</button>
-          </div>
-        </form>
-
-        {% if destinatarios %}
-          <div class="item-list">
-            {% for d in destinatarios %}
-            <div class="list-item">
-              <div class="item-content" style="font-weight:700">{{ d.email }}</div>
-              <form method="POST" action="/destinatarios/eliminar">
-                <input type="hidden" name="dest_id" value="{{ d.id }}">
-                <button class="btn btn-delete" onclick="return confirm('Remove recipient?')">✕</button>
-              </form>
-            </div>
-            {% endfor %}
-          </div>
-        {% else %}
-          <div class="empty-state">
-            <div class="empty-icon">✉️</div>
-            <div class="empty-text">No recipients configured</div>
-          </div>
-        {% endif %}
-      </div>
-    </div>
-  </div>
-
-  <div>
-    <div class="glass-panel glow" style="height:calc(100vh - 200px)">
-      <div class="panel-header">
-        <div class="panel-title">
-          <span class="panel-icon">📊</span>
-          Report Timeline
-        </div>
-      </div>
-      <div class="panel-body" style="height:calc(100% - 85px);overflow:hidden;padding:28px">
-        {% if historial %}
-          <div class="timeline">
-            {% for h in historial %}
-            <a href="/historial/{{ h.id }}" target="_blank" class="timeline-card">
-              <div class="timeline-top">
-                <div class="timeline-keyword">{{ h.keyword }}</div>
-                <div class="timeline-badges">
-                  {% if h.modo == 'alerta' %}
-                    <span class="badge badge-mode-alert">ALERT</span>
-                  {% elif h.modo == 'diario' %}
-                    <span class="badge badge-mode-daily">DAILY</span>
-                  {% else %}
-                    <span class="badge badge-mode-manual">MANUAL</span>
-                  {% endif %}
-                </div>
-              </div>
-              <div class="timeline-stats">
-                <div class="timeline-stat">
-                  <span class="timeline-stat-value">{{ h.total_resultados }}</span>
-                  <span class="timeline-stat-label">mentions</span>
-                </div>
-              </div>
-              <div class="timeline-footer">
-                <div>{{ h.ejecutado_en[:16].replace('T',' ') }}</div>
-                <div class="timeline-status">
-                  {% if h.email_enviado %}
-                    <span class="status-dot status-sent"></span>
-                    <span>Sent</span>
-                  {% else %}
-                    <span class="status-dot status-pending"></span>
-                    <span>Pending</span>
-                  {% endif %}
-                </div>
-              </div>
-            </a>
-            {% endfor %}
-          </div>
-        {% else %}
-          <div class="empty-state">
-            <div class="empty-icon">📊</div>
-            <div class="empty-text">No reports generated yet.<br>Execute a search or add active keywords.</div>
-          </div>
-        {% endif %}
-      </div>
-    </div>
-  </div>
+<div>
+<div class="panel">
+<div class="panel-hdr"><div class="panel-title"><span class="panel-icon">🔍</span>Manual Search</div></div>
+<div class="panel-body">
+<form method="POST" action="/buscar" id="search-form">
+<div class="form-grid">
+<div class="form-group"><label class="form-label">Query</label><input type="text" name="keyword" class="form-input" placeholder='"Brand" OR crisis' required></div>
+<div class="form-row">
+<div class="form-group"><label class="form-label">From</label><input type="date" name="fecha_inicio" class="form-input"></div>
+<div class="form-group"><label class="form-label">To</label><input type="date" name="fecha_fin" class="form-input"></div>
 </div>
-
-<!-- LOADING SCREEN -->
-<div id="loading-overlay">
-  <div class="loading-content">
-    <div class="loading-icon">🔍</div>
-    <div class="loading-title">Searching Media</div>
-    <div id="loading-step" class="loading-step">Initializing search engine...</div>
-    
-    <div class="progress-container">
-      <div id="progress-bar" class="progress-bar"></div>
-    </div>
-    <div id="progress-percent" class="progress-percent">0%</div>
-    
-    <div class="loading-steps">
-      <div id="step-1" class="loading-step-item">
-        <span class="step-bullet">○</span>
-        <span>Searching Google News</span>
-      </div>
-      <div id="step-2" class="loading-step-item">
-        <span class="step-bullet">○</span>
-        <span>Searching Google Web</span>
-      </div>
-      <div id="step-3" class="loading-step-item">
-        <span class="step-bullet">○</span>
-        <span>Searching YouTube</span>
-      </div>
-      <div id="step-4" class="loading-step-item">
-        <span class="step-bullet">○</span>
-        <span>Analyzing sentiment with AI</span>
-      </div>
-      <div id="step-5" class="loading-step-item">
-        <span class="step-bullet">○</span>
-        <span>Generating report</span>
-      </div>
-    </div>
-  </div>
+<div class="form-group"><label class="form-label">Max Results</label>
+<select name="num_resultados" class="form-select">
+<option value="10">10 results</option>
+<option value="20" selected>20 results</option>
+<option value="50">50 results</option>
+<option value="100">100 results</option>
+</select>
 </div>
-
+<button type="submit" class="btn btn-primary">Execute Search</button>
+</div>
+</form>
+</div>
+</div>
+<div class="panel">
+<div class="panel-hdr"><div class="panel-title"><span class="panel-icon">⚡</span>Active Monitoring</div></div>
+<div class="panel-body">
+<div class="info-box"><strong>⚡ Instant Alert</strong> Scans every X minutes. Email only when new mentions appear.<strong style="margin-top:8px">📅 Daily Digest</strong> Consolidated report at 12pm with AI analysis.</div>
+<form method="POST" action="/keywords/agregar" style="margin-bottom:20px">
+<div class="form-grid">
+<div class="form-group"><label class="form-label">Keyword</label><input type="text" name="keyword" class="form-input" placeholder='e.g. "Company" +crisis' required></div>
+<div class="form-row">
+<div class="form-group"><label class="form-label">Mode</label>
+<select name="modo" id="modo-sel" class="form-select" onchange="toggleFreq(this.value)">
+<option value="alerta">⚡ Instant</option>
+<option value="diario" selected>📅 Daily</option>
+</select>
+</div>
+<div class="form-group" id="freq-wrap"><label class="form-label">Frequency</label>
+<select name="frecuencia_horas" class="form-select">
+<option value="5">5 min</option>
+<option value="10">10 min</option>
+<option value="15" selected>15 min</option>
+</select>
+</div>
+</div>
+<button type="submit" class="btn btn-primary">Add Keyword</button>
+</div>
+</form>
+{% if keywords %}
+<div class="list">
+{% for kw in keywords %}
+<div class="list-item">
+<div class="list-content">
+<div class="list-title">
+{% if kw.modo == 'alerta' %}<span class="badge badge-alert">ALERT</span>{% else %}<span class="badge badge-daily">DAILY</span>{% endif %}
+{{ kw.keyword }}
+</div>
+<div class="list-meta">{% if kw.modo == 'alerta' %}Every {{ kw.frecuencia_horas }} min{% else %}Daily 12pm{% endif %} · Since {{ kw.creada_en[:10] }}</div>
+</div>
+<form method="POST" action="/keywords/eliminar">
+<input type="hidden" name="keyword_id" value="{{ kw.id }}">
+<button class="btn btn-delete" onclick="return confirm('Remove?')">✕</button>
+</form>
+</div>
+{% endfor %}
+</div>
+{% else %}
+<div class="empty"><div class="empty-icon">📌</div><div class="empty-text">No active keywords</div></div>
+{% endif %}
+</div>
+</div>
+<div class="panel">
+<div class="panel-hdr"><div class="panel-title"><span class="panel-icon">✉️</span>Recipients</div></div>
+<div class="panel-body">
+<form method="POST" action="/destinatarios/agregar" style="margin-bottom:20px">
+<div class="form-grid">
+<div class="form-group"><label class="form-label">Email</label><input type="email" name="email" class="form-input" placeholder="user@metrica.pe" required></div>
+<button type="submit" class="btn btn-primary">Add Recipient</button>
+</div>
+</form>
+{% if destinatarios %}
+<div class="list">
+{% for d in destinatarios %}
+<div class="list-item">
+<div class="list-content" style="font-weight:700">{{ d.email }}</div>
+<form method="POST" action="/destinatarios/eliminar">
+<input type="hidden" name="dest_id" value="{{ d.id }}">
+<button class="btn btn-delete" onclick="return confirm('Remove?')">✕</button>
+</form>
+</div>
+{% endfor %}
+</div>
+{% else %}
+<div class="empty"><div class="empty-icon">✉️</div><div class="empty-text">No recipients</div></div>
+{% endif %}
+</div>
+</div>
+</div>
+<div>
+<div class="panel" style="height:calc(100vh - 100px)">
+<div class="panel-hdr"><div class="panel-title"><span class="panel-icon">📊</span>Report Timeline</div></div>
+<div class="panel-body" style="height:calc(100% - 57px);overflow:hidden;padding:16px">
+{% if historial %}
+<div class="timeline">
+{% for h in historial %}
+<a href="/historial/{{ h.id }}" target="_blank" class="timeline-card">
+<div class="timeline-top">
+<div class="timeline-kw">{{ h.keyword }}</div>
+<div class="timeline-badges">
+{% if h.modo == 'alerta' %}<span class="badge badge-alerta">ALERT</span>{% elif h.modo == 'diario' %}<span class="badge badge-diario">DAILY</span>{% else %}<span class="badge badge-manual">MANUAL</span>{% endif %}
+</div>
+</div>
+<div class="timeline-stats">
+<div class="timeline-stat"><span class="timeline-stat-val">{{ h.total_resultados }}</span><span class="timeline-stat-lbl">mentions</span></div>
+</div>
+<div class="timeline-foot">
+<div>{{ h.ejecutado_en[:16].replace('T',' ') }}</div>
+<div class="timeline-status">
+{% if h.email_enviado %}<span class="status-dot status-sent"></span><span>Sent</span>{% else %}<span class="status-dot status-pending"></span><span>Pending</span>{% endif %}
+</div>
+</div>
+</a>
+{% endfor %}
+</div>
+{% else %}
+<div class="empty"><div class="empty-icon">📊</div><div class="empty-text">No reports yet</div></div>
+{% endif %}
+</div>
+</div>
+</div>
+</div>
+<div id="loading">
+<div class="loading-box">
+<div class="loading-icon">🔍</div>
+<div class="loading-title">Searching Media</div>
+<div id="loading-step" class="loading-step">Initializing...</div>
+<div class="progress-bar-wrap"><div id="progress-bar" class="progress-bar"></div></div>
+<div id="progress-pct" class="progress-pct">0%</div>
+<div class="steps">
+<div id="step-1" class="step"><span class="step-bullet">○</span><span>Searching Google News</span></div>
+<div id="step-2" class="step"><span class="step-bullet">○</span><span>Searching Google Web</span></div>
+<div id="step-3" class="step"><span class="step-bullet">○</span><span>Searching YouTube</span></div>
+<div id="step-4" class="step"><span class="step-bullet">○</span><span>Analyzing sentiment with AI</span></div>
+<div id="step-5" class="step"><span class="step-bullet">○</span><span>Generating report</span></div>
+</div>
+</div>
+</div>
 <script>
-window.addEventListener('scroll',()=>{
-  const navbar=document.getElementById('navbar');
-  if(window.scrollY>50){
-    navbar.classList.add('scrolled');
-  }else{
-    navbar.classList.remove('scrolled');
-  }
-});
-
-function toggleFreq(modo){
-  const fw=document.getElementById('freq-wrap');
-  fw.style.display=modo==='alerta'?'block':'none';
-}
+function toggleFreq(modo){document.getElementById('freq-wrap').style.display=modo==='alerta'?'block':'none'}
 toggleFreq(document.getElementById('modo-sel').value);
-
-// LOADING SCREEN FUNCTION
-function showLoadingScreen() {
-  const overlay = document.getElementById('loading-overlay');
-  const progressBar = document.getElementById('progress-bar');
-  const progressPercent = document.getElementById('progress-percent');
-  const loadingStep = document.getElementById('loading-step');
-  
-  overlay.style.display = 'flex';
-  let currentStep = 0;
-  
-  const steps = [
-    {percent: 0, step: 0, text: 'Initializing search engine...', delay: 200},
-    {percent: 20, step: 1, text: 'Searching Google News...', delay: 800},
-    {percent: 40, step: 2, text: 'Searching Google Web...', delay: 800},
-    {percent: 60, step: 3, text: 'Searching YouTube...', delay: 800},
-    {percent: 80, step: 4, text: 'Analyzing sentiment with AI...', delay: 1000},
-    {percent: 95, step: 5, text: 'Generating report...', delay: 800},
-    {percent: 100, step: 5, text: 'Complete! Redirecting...', delay: 500}
-  ];
-  
-  function runStep() {
-    if (currentStep < steps.length) {
-      const step = steps[currentStep];
-      
-      progressBar.style.width = step.percent + '%';
-      progressPercent.textContent = step.percent + '%';
-      loadingStep.textContent = step.text;
-      
-      if (step.step > 0) {
-        const stepEl = document.getElementById('step-' + step.step);
-        stepEl.style.color = 'var(--green)';
-        stepEl.style.opacity = '1';
-        stepEl.querySelector('.step-bullet').textContent = '✓';
-      }
-      
-      currentStep++;
-      setTimeout(runStep, step.delay);
-    }
-  }
-  
-  runStep();
-}
-
-// Interceptar el submit del form de búsqueda manual
-document.getElementById('search-form').addEventListener('submit', function(e) {
-  e.preventDefault();
-  showLoadingScreen();
-  
-  setTimeout(() => {
-    this.submit();
-  }, 4500);
-});
+function showLoading(){const loading=document.getElementById('loading');const bar=document.getElementById('progress-bar');const pct=document.getElementById('progress-pct');const step=document.getElementById('loading-step');loading.style.display='flex';let i=0;const steps=[{p:0,s:0,t:'Initializing...',d:200},{p:20,s:1,t:'Searching Google News...',d:800},{p:40,s:2,t:'Searching Google Web...',d:800},{p:60,s:3,t:'Searching YouTube...',d:800},{p:80,s:4,t:'Analyzing sentiment with AI...',d:1000},{p:95,s:5,t:'Generating report...',d:800},{p:100,s:5,t:'Complete!',d:500}];function run(){if(i<steps.length){const st=steps[i];bar.style.width=st.p+'%';pct.textContent=st.p+'%';step.textContent=st.t;if(st.s>0){const el=document.getElementById('step-'+st.s);el.classList.add('done');el.querySelector('.step-bullet').textContent='✓'}i++;setTimeout(run,st.d)}}run()}
+document.getElementById('search-form').addEventListener('submit',function(e){e.preventDefault();showLoading();setTimeout(()=>this.submit(),4500)});
 </script>
-
 </body>
 </html>
