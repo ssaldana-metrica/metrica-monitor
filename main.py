@@ -49,10 +49,22 @@ templates = Jinja2Templates(directory="templates")
 # MOTOR DE BÚSQUEDA
 # ════════════════════════════════════════════════════
 
+def _fecha_para_serper(fecha_iso):
+    """Convierte '2025-04-01' (HTML date) a '4/1/2025' (Serper tbs)."""
+    try:
+        from datetime import datetime as _dt
+        d = _dt.strptime(fecha_iso, "%Y-%m-%d")
+        return f"{d.month}/{d.day}/{d.year}"
+    except Exception:
+        return fecha_iso
+
+
 def buscar_web(keyword, fecha_inicio=None, fecha_fin=None, num=20):
     payload = {"q": keyword, "gl": "pe", "hl": "es", "num": num}
     if fecha_inicio and fecha_fin:
-        payload["tbs"] = f"cdr:1,cd_min:{fecha_inicio},cd_max:{fecha_fin}"
+        fi = _fecha_para_serper(fecha_inicio)
+        ff = _fecha_para_serper(fecha_fin)
+        payload["tbs"] = f"cdr:1,cd_min:{fi},cd_max:{ff}"
     else:
         from datetime import datetime, timedelta
         ayer = (datetime.now() - timedelta(days=1)).strftime("%-m/%-d/%Y")
@@ -229,23 +241,32 @@ Responde SOLO con JSON válido, sin texto extra, sin markdown:
 def analizar_tono(titulo, snippet, keyword):
     if not ANTHROPIC_API_KEY:
         return {"tono": "neutro", "justificacion": "Sin API Claude configurada.", "relevancia": "media"}
-    try:
-        client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
-        msg = client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=120,
-            system=PROMPT_TONO,
-            messages=[{"role": "user", "content":
-                f"Keyword (cliente): {keyword}\nTítulo: {titulo}\nSnippet: {snippet[:200]}"}]
-        )
-        text = msg.content[0].text.strip()
-        if text.startswith("```"):
-            text = text.split("```")[1]
-            if text.startswith("json"):
-                text = text[4:]
-        return json.loads(text)
-    except Exception:
-        return {"tono": "neutro", "justificacion": "Error en análisis.", "relevancia": "media"}
+    for intento in range(3):
+        try:
+            client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+            msg = client.messages.create(
+                model="claude-haiku-4-5-20251001",
+                max_tokens=150,
+                system=PROMPT_TONO,
+                messages=[{"role": "user", "content":
+                    f"Keyword (cliente): {keyword}\nTítulo: {titulo}\nSnippet: {snippet[:200]}"}]
+            )
+            text = msg.content[0].text.strip()
+            if text.startswith("```"):
+                text = text.split("```")[1]
+                if text.startswith("json"):
+                    text = text[4:]
+            result = json.loads(text)
+            # Validar que tiene los campos esperados
+            if "tono" not in result or result["tono"] not in ("positivo","negativo","neutro"):
+                raise ValueError("JSON inválido")
+            return result
+        except Exception as e:
+            if intento < 2:
+                time.sleep(0.5 * (intento + 1))
+                continue
+            print(f"[Claude] Error después de 3 intentos: {e}")
+            return {"tono": "neutro", "justificacion": "Sin análisis disponible.", "relevancia": "media"}
 
 
 def analizar_resultados(resultados, keyword):
@@ -580,12 +601,13 @@ async def buscar_manual(
 async def enviar_resultado_manual(
     keyword:    str = Form(...),
     html_email: str = Form(...),
+    total:      int = Form(0),
 ):
     dests  = [d["email"] for d in get_destinatarios()]
     fecha  = datetime.now().strftime("%d/%m/%Y %H:%M")
     asunto = f"Métrica Monitor · {keyword} · {fecha}"
     ok     = enviar_mailgun(html_email, asunto, dests)
-    save_historial(None, keyword, "manual", 0, ok, html_email)
+    save_historial(None, keyword, "manual", total, ok, html_email)
     return JSONResponse({"ok": ok, "destinatarios": dests})
 
 
