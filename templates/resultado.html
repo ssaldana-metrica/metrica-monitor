@@ -40,6 +40,8 @@ body{font-family:'Inter',sans-serif;background:var(--fondo);color:var(--texto)}
 .badge-t2{background:#004080;color:#fff}
 .badge-t3{background:#5A6A7E;color:#fff}
 .badge-t0{background:#E5E7EB;color:#374151}
+.badge-yt{background:#FEE2E2;color:#991B1B}
+.badge-rel{background:#FEF9C3;color:#713F12;font-size:11px;letter-spacing:1px}
 .card-fecha{font-size:10px;color:var(--faint)}
 .card-titulo{font-weight:600;font-size:13px;line-height:1.4;margin-bottom:5px}
 .card-titulo a{color:var(--azul2);text-decoration:none}
@@ -94,10 +96,24 @@ body{font-family:'Inter',sans-serif;background:var(--fondo);color:var(--texto)}
     <div class="card-meta">
       <div class="badges">
         <span class="badge {{ 'badge-pos' if tono=='positivo' else 'badge-neg' if tono=='negativo' else 'badge-neu' }}">{{ tono|capitalize }}</span>
-        <span class="badge {{ 'badge-news' if r.tipo=='news' else 'badge-web' }}">{{ 'Google News' if r.tipo=='news' else 'Google Web' }}</span>
+        {% if r.tipo=='youtube' %}
+          <span class="badge badge-yt">▶ YouTube</span>
+        {% elif r.tipo=='news' %}
+          <span class="badge badge-news">Google News</span>
+        {% else %}
+          <span class="badge badge-web">Google Web</span>
+        {% endif %}
         <span class="badge {{ 'badge-t1' if tier=='I' else 'badge-t2' if tier=='II' else 'badge-t3' if tier=='III' else 'badge-t0' }}">
           {{ 'Tier '+tier if tier != 'Sin clasificar' else '—' }}
         </span>
+        {% set rel = r.get('relevancia','') %}
+        {% if rel == 'alta' %}
+          <span class="badge badge-rel" title="Mención directa">★★★</span>
+        {% elif rel == 'media' %}
+          <span class="badge badge-rel" title="Mención relacionada">★★☆</span>
+        {% elif rel == 'baja' %}
+          <span class="badge badge-rel" title="Mención secundaria">★☆☆</span>
+        {% endif %}
       </div>
       <span class="card-fecha">{{ r.fecha }}</span>
     </div>
@@ -120,7 +136,19 @@ body{font-family:'Inter',sans-serif;background:var(--fondo);color:var(--texto)}
     <div class="card-meta">
       <div class="badges">
         <span class="badge {{ 'badge-pos' if tono=='positivo' else 'badge-neg' if tono=='negativo' else 'badge-neu' }}">{{ tono|capitalize }}</span>
-        <span class="badge" style="background:#EDE9FE;color:#6D28D9">Red Social</span>
+        {% if r.tipo=='youtube' %}
+          <span class="badge badge-yt">▶ YouTube</span>
+        {% else %}
+          <span class="badge" style="background:#EDE9FE;color:#6D28D9">Red Social</span>
+        {% endif %}
+        {% set rel = r.get('relevancia','') %}
+        {% if rel == 'alta' %}
+          <span class="badge badge-rel" title="Mención directa">★★★</span>
+        {% elif rel == 'media' %}
+          <span class="badge badge-rel" title="Mención relacionada">★★☆</span>
+        {% elif rel == 'baja' %}
+          <span class="badge badge-rel" title="Mención secundaria">★☆☆</span>
+        {% endif %}
       </div>
       <span class="card-fecha">{{ r.fecha }}</span>
     </div>
@@ -143,6 +171,7 @@ body{font-family:'Inter',sans-serif;background:var(--fondo);color:var(--texto)}
 <form id="email-form" method="POST" action="/buscar/enviar" style="display:none">
   <input type="hidden" name="keyword" value="{{ keyword }}">
   <input type="hidden" name="html_email" id="html-hidden">
+  <input type="hidden" name="total" value="{{ total }}">
 </form>
 
 <script>
