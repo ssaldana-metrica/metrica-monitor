@@ -25,6 +25,7 @@ SERPER_API_KEY    = os.getenv("SERPER_API_KEY", "")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 MAILGUN_API_KEY   = os.getenv("MAILGUN_API_KEY", "")
 MAILGUN_DOMAIN    = os.getenv("MAILGUN_DOMAIN", "metrica.pe")
+YOUTUBE_API_KEY   = os.getenv("YOUTUBE_API_KEY", "")
 REMITENTE         = f"monitoreo@{MAILGUN_DOMAIN}"
 
 scheduler = BackgroundScheduler(timezone="America/Lima")
@@ -53,7 +54,6 @@ def buscar_web(keyword, fecha_inicio=None, fecha_fin=None, num=20):
     if fecha_inicio and fecha_fin:
         payload["tbs"] = f"cdr:1,cd_min:{fecha_inicio},cd_max:{fecha_fin}"
     else:
-        # qdr:d = últimas 24h; agregamos fecha explícita para forzar el filtro
         from datetime import datetime, timedelta
         ayer = (datetime.now() - timedelta(days=1)).strftime("%-m/%-d/%Y")
         hoy  = datetime.now().strftime("%-m/%-d/%Y")
@@ -80,6 +80,57 @@ def buscar_news(keyword, num=20):
         return []
 
 
+def buscar_youtube(keyword, fecha_inicio=None, fecha_fin=None, num=5):
+    """Busca videos en YouTube via Data API v3. Gratis: 100 búsquedas/día."""
+    if not YOUTUBE_API_KEY:
+        return []
+    from datetime import datetime, timedelta, timezone
+    params = {
+        "part":              "snippet",
+        "q":                 keyword,
+        "type":              "video",
+        "order":             "date",
+        "regionCode":        "PE",
+        "relevanceLanguage": "es",
+        "maxResults":        min(num, 10),
+        "key":               YOUTUBE_API_KEY,
+    }
+    if fecha_inicio and fecha_fin:
+        params["publishedAfter"]  = fecha_inicio + "T00:00:00Z"
+        params["publishedBefore"] = fecha_fin    + "T23:59:59Z"
+    else:
+        ayer = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        params["publishedAfter"] = ayer
+    try:
+        r = requests.get(
+            "https://www.googleapis.com/youtube/v3/search",
+            params=params, timeout=15
+        )
+        r.raise_for_status()
+        items = r.json().get("items", [])
+        resultados = []
+        for item in items:
+            s   = item.get("snippet", {})
+            vid = item.get("id", {}).get("videoId", "")
+            if not vid:
+                continue
+            url = f"https://www.youtube.com/watch?v={vid}"
+            resultados.append({
+                "tipo":    "youtube",
+                "titulo":  s.get("title",       "Sin título").strip(),
+                "snippet": s.get("description", "").strip()[:300],
+                "fuente":  s.get("channelTitle", "YouTube"),
+                "fecha":   s.get("publishedAt", "")[:10],
+                "url":     url,
+                "tier":    get_tier(url),
+                "es_red":  True,
+            })
+        return resultados
+    except Exception as e:
+        print(f"[YouTube] Error: {e}")
+        return []
+
+
 def parsear(item, tipo):
     url = item.get("link", "")
     return {
@@ -98,26 +149,23 @@ def generar_variaciones(keyword):
     """Genera variaciones de búsqueda para máxima cobertura."""
     base = keyword.strip()
     variaciones = [base]
-    # Si no tiene comillas, agregar versión con comillas exactas
     if '"' not in base:
         variaciones.append(f'"{base}"')
-    # Agregar contexto Perú si no está ya
     if "peru" not in base.lower() and "perú" not in base.lower():
         variaciones.append(f"{base} Peru")
-    return variaciones[:3]  # máximo 3 variaciones para no gastar queries
+    return variaciones[:3]
 
 
 def buscar_keyword(keyword, fecha_inicio=None, fecha_fin=None, num=20):
     """
-    Motor mejorado: múltiples variaciones de keyword, deduplica por URL,
-    respeta el límite num en el total final,
-    ordena medios por tier primero y redes al final.
+    Motor completo: Serper (web + news) + YouTube.
+    Deduplica por URL, respeta límite num, ordena medios por tier primero.
     """
     todos = {}
     variaciones = generar_variaciones(keyword)
-    # Pedimos menos por variación para no exceder el total
     num_por_variacion = max(5, num // len(variaciones))
 
+    # Serper: web + news
     for kw in variaciones:
         for item in buscar_web(kw, fecha_inicio, fecha_fin, num_por_variacion):
             r = parsear(item, "web")
@@ -133,15 +181,21 @@ def buscar_keyword(keyword, fecha_inicio=None, fecha_fin=None, num=20):
                     todos[uid] = r
         time.sleep(0.2)
 
+    # YouTube: busca solo con keyword principal para no gastar cuota
+    num_yt = min(5, max(3, num // 6))
+    for r in buscar_youtube(keyword, fecha_inicio, fecha_fin, num_yt):
+        if r["url"]:
+            uid = hashlib.md5(r["url"].encode()).hexdigest()
+            if uid not in todos:
+                todos[uid] = r
+
     resultados = list(todos.values())
     resultados.sort(key=lambda x: (int(x["es_red"]), orden_tier(x["tier"])))
-    # Respetar el límite total solicitado
     return resultados[:num]
 
 
 # ════════════════════════════════════════════════════
-# ANÁLISIS DE TONO (solo para búsqueda manual y resumen diario)
-# En alertas NO se usa Claude para ahorrar costo
+# ANÁLISIS DE TONO
 # ════════════════════════════════════════════════════
 
 PROMPT_TONO = """Eres un analista senior de relaciones públicas y monitoreo de medios en Perú.
@@ -182,7 +236,7 @@ def analizar_tono(titulo, snippet, keyword):
             max_tokens=120,
             system=PROMPT_TONO,
             messages=[{"role": "user", "content":
-                f"Keyword: {keyword}\nTítulo: {titulo}\nSnippet: {snippet[:200]}"}]
+                f"Keyword (cliente): {keyword}\nTítulo: {titulo}\nSnippet: {snippet[:200]}"}]
         )
         text = msg.content[0].text.strip()
         if text.startswith("```"):
@@ -225,9 +279,12 @@ TIER_BADGE = {
 def card_email(r, es_alerta=False):
     tc  = TONO_COLORES.get(r.get("tono",""), TONO_COLORES[""])
     tb  = TIER_BADGE.get(r.get("tier","Sin clasificar"), TIER_BADGE["Sin clasificar"])
-    tipo_lbl = "Google News" if r["tipo"] == "news" else "Google Web"
-    tipo_bg  = "#FEF3C7" if r["tipo"] == "news" else "#EFF6FF"
-    tipo_clr = "#92400E" if r["tipo"] == "news" else "#1E40AF"
+    if r["tipo"] == "youtube":
+        tipo_lbl, tipo_bg, tipo_clr = "YouTube", "#FEE2E2", "#991B1B"
+    elif r["tipo"] == "news":
+        tipo_lbl, tipo_bg, tipo_clr = "Google News", "#FEF3C7", "#92400E"
+    else:
+        tipo_lbl, tipo_bg, tipo_clr = "Google Web", "#EFF6FF", "#1E40AF"
     alerta_banner = (
         '<p style="margin:0 0 6px;font-size:11px;color:#7C3AED;font-weight:700">⚡ NUEVA MENCIÓN</p>'
         if es_alerta else ""
@@ -264,8 +321,8 @@ def card_email(r, es_alerta=False):
             {r['snippet'][:200]}{'…' if len(r['snippet'])>200 else ''}</p>
           {tono_row}
           <p style="margin:6px 0 0;font-size:11px;color:#5A6A7E">
-            🌐 {r['fuente']} &nbsp;·&nbsp;
-            <a href="{r['url']}" style="color:#0066CC">Ver nota ↗</a></p>
+            {'▶' if r['tipo']=='youtube' else '🌐'} {r['fuente']} &nbsp;·&nbsp;
+            <a href="{r['url']}" style="color:#0066CC">{'Ver video ↗' if r['tipo']=='youtube' else 'Ver nota ↗'}</a></p>
         </td></tr>
       </table>
     </td></tr>"""
@@ -296,7 +353,7 @@ def generar_email_html(keyword, resultados, fecha, modo="manual"):
     modo_txt  = {"alerta":"⚡ Alerta inmediata","diario":"Resumen diario","manual":"Búsqueda manual"}.get(modo, "Manual")
 
     cuerpo  = seccion_email("📰 Medios y páginas web", "#003366", medios, es_alerta)
-    cuerpo += seccion_email("📱 Redes sociales", "#6D28D9", redes, es_alerta)
+    cuerpo += seccion_email("📱 Redes sociales y YouTube", "#6D28D9", redes, es_alerta)
 
     stats = f"""
     <td align="center"><p style="margin:0;color:#fff;font-size:18px;font-weight:700">{len(resultados)}</p>
@@ -306,7 +363,7 @@ def generar_email_html(keyword, resultados, fecha, modo="manual"):
       <p style="margin:2px 0 0;color:#B8D4F0;font-size:10px">medios</p></td>
     <td align="center" style="border-left:1px solid rgba(255,255,255,.2)">
       <p style="margin:0;color:#C4B5FD;font-size:16px;font-weight:700">{len(redes)}</p>
-      <p style="margin:2px 0 0;color:#B8D4F0;font-size:10px">redes</p></td>"""
+      <p style="margin:2px 0 0;color:#B8D4F0;font-size:10px">redes+YT</p></td>"""
 
     if n_pos or n_neg or n_neu:
         stats += f"""
@@ -377,12 +434,6 @@ def enviar_mailgun(html, asunto, destinatarios):
 # ════════════════════════════════════════════════════
 
 def job_alerta(kw_id, keyword, freq_minutos):
-    """
-    Modo alerta: busca cada N minutos.
-    - Solo manda email si hay URLs NUEVAS (no enviadas antes).
-    - NO usa Claude para ahorrar costo en alertas.
-    - Un email por cada noticia nueva.
-    """
     print(f"[ALERTA] Verificando: '{keyword}'")
     resultados = buscar_keyword(keyword, num=15)
     dests = [d["email"] for d in get_destinatarios()]
@@ -391,7 +442,6 @@ def job_alerta(kw_id, keyword, freq_minutos):
     for r in resultados:
         if not r["url"] or url_ya_enviada(kw_id, r["url"]):
             continue
-        # Sin análisis Claude en alerta para ahorrar — solo título + snippet
         r["tono"] = ""
         r["justificacion"] = ""
         fecha  = datetime.now().strftime("%d/%m/%Y %H:%M")
@@ -406,17 +456,12 @@ def job_alerta(kw_id, keyword, freq_minutos):
         time.sleep(0.5)
 
     if nuevos == 0:
-        print(f"[ALERTA] '{keyword}': sin noticias nuevas, no se envió nada")
+        print(f"[ALERTA] '{keyword}': sin noticias nuevas")
     else:
         print(f"[ALERTA] '{keyword}': {nuevos} alerta(s) enviada(s)")
 
 
 def job_diario(kw_id, keyword):
-    """
-    Modo diario: busca una vez al día a las 12pm.
-    - Incluye análisis de tono con Claude.
-    - Manda un solo email con todo lo encontrado.
-    """
     print(f"[DIARIO] Ejecutando: '{keyword}'")
     resultados = buscar_keyword(keyword, num=20)
     if resultados:
@@ -431,14 +476,11 @@ def job_diario(kw_id, keyword):
 
 
 def recargar_jobs():
-    """Recarga todos los jobs del scheduler según las keywords activas en BD."""
     scheduler.remove_all_jobs()
-    # Limpieza automática de URLs antiguas cada madrugada
     scheduler.add_job(
         lambda: limpiar_urls_antiguas(30),
         CronTrigger(hour=3, minute=0, timezone="America/Lima"),
-        id="limpieza_diaria",
-        replace_existing=True
+        id="limpieza_diaria", replace_existing=True
     )
     keywords = get_keywords_permanentes()
     for kw in keywords:
@@ -447,26 +489,20 @@ def recargar_jobs():
         freq = kw.get("frecuencia_horas", 24)
         modo = kw.get("modo", "diario")
         if modo == "alerta":
-            # freq_horas aquí representa minutos para modo alerta
-            # (5, 10 o 15 minutos)
-            freq_min = freq  # en modo alerta guardamos minutos directamente
             scheduler.add_job(
                 job_alerta,
-                IntervalTrigger(minutes=freq_min, timezone="America/Lima"),
-                args=[kw["id"], kw["keyword"], freq_min],
-                id=f"kw_{kw['id']}",
-                replace_existing=True
+                IntervalTrigger(minutes=freq, timezone="America/Lima"),
+                args=[kw["id"], kw["keyword"], freq],
+                id=f"kw_{kw['id']}", replace_existing=True
             )
-        else:  # diario
+        else:
             scheduler.add_job(
                 job_diario,
                 CronTrigger(hour=12, minute=0, timezone="America/Lima"),
                 args=[kw["id"], kw["keyword"]],
-                id=f"kw_{kw['id']}",
-                replace_existing=True
+                id=f"kw_{kw['id']}", replace_existing=True
             )
-    total = len(scheduler.get_jobs())
-    print(f"[SCHEDULER] {total} jobs activos")
+    print(f"[SCHEDULER] {len(scheduler.get_jobs())} jobs activos")
 
 
 # ════════════════════════════════════════════════════
@@ -549,7 +585,6 @@ async def enviar_resultado_manual(
     fecha  = datetime.now().strftime("%d/%m/%Y %H:%M")
     asunto = f"Métrica Monitor · {keyword} · {fecha}"
     ok     = enviar_mailgun(html_email, asunto, dests)
-    # Guardar en historial
     save_historial(None, keyword, "manual", 0, ok, html_email)
     return JSONResponse({"ok": ok, "destinatarios": dests})
 
@@ -564,5 +599,10 @@ async def ver_historial(historial_id: int):
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "jobs": len(scheduler.get_jobs()),
-            "time": datetime.now().isoformat()}
+    yt = "✅" if YOUTUBE_API_KEY else "⚠️ sin configurar"
+    return {
+        "status": "ok",
+        "jobs":   len(scheduler.get_jobs()),
+        "youtube": yt,
+        "time":   datetime.now().isoformat()
+    }
