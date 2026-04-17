@@ -1,14 +1,6 @@
 """
 main.py — FastAPI application
-Responsabilidades: rutas web, lifespan, nada más.
-
-Toda la lógica de negocio está en:
-  motor.py          — búsqueda Serper + YouTube
-  tono.py           — análisis Claude
-  email_sender.py   — generación HTML + Mailgun
-  scheduler_jobs.py — jobs APScheduler
-  database.py       — SQLite
-  tiers.py          — clasificación de medios
+Rutas web y lifespan. Toda la logica en los modulos especializados.
 """
 
 import os
@@ -32,10 +24,6 @@ from scheduler_jobs import recargar_jobs, scheduler
 from tono import analizar_resultados
 
 
-# ════════════════════════════════════════════════════
-# LIFESPAN
-# ════════════════════════════════════════════════════
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
@@ -45,10 +33,6 @@ async def lifespan(app: FastAPI):
     scheduler.shutdown()
 
 
-# ════════════════════════════════════════════════════
-# APP
-# ════════════════════════════════════════════════════
-
 app = FastAPI(lifespan=lifespan)
 
 if os.path.isdir("static"):
@@ -57,9 +41,7 @@ if os.path.isdir("static"):
 templates = Jinja2Templates(directory="templates")
 
 
-# ════════════════════════════════════════════════════
-# RUTAS
-# ════════════════════════════════════════════════════
+# ── Rutas ─────────────────────────────────────────────────────────────────────
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
@@ -74,10 +56,11 @@ async def index(request: Request):
 @app.post("/keywords/agregar")
 async def agregar_keyword(
     keyword:          str = Form(...),
+    contexto:         str = Form(""),
     modo:             str = Form("diario"),
     frecuencia_horas: int = Form(15),
 ):
-    save_keyword_permanente(keyword, modo, frecuencia_horas)
+    save_keyword_permanente(keyword, contexto, modo, frecuencia_horas)
     recargar_jobs()
     return RedirectResponse("/", status_code=303)
 
@@ -105,6 +88,7 @@ async def eliminar_destinatario(dest_id: int = Form(...)):
 async def buscar_manual(
     request:        Request,
     keyword:        str = Form(...),
+    contexto:       str = Form(""),
     fecha_inicio:   str = Form(""),
     fecha_fin:      str = Form(""),
     num_resultados: int = Form(20),
@@ -112,9 +96,9 @@ async def buscar_manual(
     fi = fecha_inicio or None
     ff = fecha_fin    or None
 
-    resultados = buscar_keyword(keyword, fi, ff, num_resultados)
+    resultados = buscar_keyword(keyword, fi, ff, num_resultados, contexto)
     if resultados:
-        resultados = analizar_resultados(resultados, keyword)
+        resultados = analizar_resultados(resultados, keyword, contexto)
 
     fecha      = datetime.now().strftime("%d/%m/%Y %H:%M")
     html_email = generar_email_html(keyword, resultados, fecha, modo="manual")
@@ -122,6 +106,7 @@ async def buscar_manual(
     return templates.TemplateResponse("resultado.html", {
         "request":    request,
         "keyword":    keyword,
+        "contexto":   contexto,
         "resultados": resultados,
         "medios":     [r for r in resultados if not r.get("es_red")],
         "redes":      [r for r in resultados if r.get("es_red")],
@@ -139,7 +124,7 @@ async def enviar_resultado_manual(
 ):
     dests  = [d["email"] for d in get_destinatarios()]
     fecha  = datetime.now().strftime("%d/%m/%Y %H:%M")
-    asunto = f"Métrica Monitor · {keyword} · {fecha}"
+    asunto = f"Metrica Monitor · {keyword} · {fecha}"
     ok     = enviar_mailgun(html_email, asunto, dests)
     save_historial(None, keyword, "manual", total, ok, html_email)
     return JSONResponse({"ok": ok, "destinatarios": dests})
@@ -155,7 +140,7 @@ async def ver_historial(historial_id: int):
 
 @app.get("/health")
 async def health():
-    yt = "✅" if os.getenv("YOUTUBE_API_KEY") else "⚠️ sin configurar"
+    yt = "OK" if os.getenv("YOUTUBE_API_KEY") else "sin configurar"
     return {
         "status": "ok",
         "jobs":   len(scheduler.get_jobs()),
