@@ -2,7 +2,6 @@ import sqlite3
 import os
 from datetime import datetime
 
-# Usar disco persistente en Render si existe, sino usar local
 DB_PATH = "/var/data/metrica.db" if os.path.isdir("/var/data") else "metrica.db"
 
 
@@ -19,6 +18,7 @@ def init_db():
         CREATE TABLE IF NOT EXISTS keywords_permanentes (
             id               INTEGER PRIMARY KEY AUTOINCREMENT,
             keyword          TEXT NOT NULL,
+            contexto         TEXT NOT NULL DEFAULT '',
             modo             TEXT NOT NULL DEFAULT 'diario',
             frecuencia_horas INTEGER NOT NULL DEFAULT 24,
             activa           INTEGER NOT NULL DEFAULT 1,
@@ -47,7 +47,14 @@ def init_db():
             UNIQUE(keyword_id, url)
         );
     """)
-    conn.commit()
+    # Migración segura: agrega columna contexto si no existe en BD ya creada.
+    # ALTER TABLE IF NOT EXISTS no existe en SQLite — usamos try/except.
+    try:
+        c.execute("ALTER TABLE keywords_permanentes ADD COLUMN contexto TEXT NOT NULL DEFAULT ''")
+        conn.commit()
+        print("[db] Columna 'contexto' agregada a keywords_permanentes")
+    except sqlite3.OperationalError:
+        pass  # Ya existía — normal en deploys posteriores al primero
     conn.close()
 
 
@@ -58,11 +65,13 @@ def get_keywords_permanentes():
     return [dict(r) for r in rows]
 
 
-def save_keyword_permanente(keyword, modo, frecuencia_horas):
+def save_keyword_permanente(keyword: str, contexto: str, modo: str, frecuencia_horas: int):
     conn = get_conn()
     conn.execute(
-        "INSERT INTO keywords_permanentes (keyword, modo, frecuencia_horas, activa, creada_en) VALUES (?,?,?,1,?)",
-        (keyword, modo, frecuencia_horas, datetime.now().isoformat())
+        """INSERT INTO keywords_permanentes
+           (keyword, contexto, modo, frecuencia_horas, activa, creada_en)
+           VALUES (?,?,?,?,1,?)""",
+        (keyword, contexto, modo, frecuencia_horas, datetime.now().isoformat())
     )
     conn.commit()
     conn.close()
@@ -104,7 +113,9 @@ def delete_destinatario(dest_id):
 def save_historial(keyword_id, keyword, modo, total, enviado, html_content):
     conn = get_conn()
     conn.execute(
-        "INSERT INTO historial (keyword_id,keyword,modo,total_resultados,email_enviado,html_content,ejecutado_en) VALUES (?,?,?,?,?,?,?)",
+        """INSERT INTO historial
+           (keyword_id,keyword,modo,total_resultados,email_enviado,html_content,ejecutado_en)
+           VALUES (?,?,?,?,?,?,?)""",
         (keyword_id, keyword, modo, total, int(enviado), html_content, datetime.now().isoformat())
     )
     conn.commit()
@@ -114,7 +125,8 @@ def save_historial(keyword_id, keyword, modo, total, enviado, html_content):
 def get_historial(limit=30):
     conn = get_conn()
     rows = conn.execute(
-        "SELECT id,keyword,modo,total_resultados,email_enviado,ejecutado_en FROM historial ORDER BY ejecutado_en DESC LIMIT ?",
+        """SELECT id,keyword,modo,total_resultados,email_enviado,ejecutado_en
+           FROM historial ORDER BY ejecutado_en DESC LIMIT ?""",
         (limit,)
     ).fetchall()
     conn.close()
@@ -149,6 +161,7 @@ def marcar_url_enviada(keyword_id, url):
 
 def limpiar_urls_antiguas(dias=30):
     conn = get_conn()
-    conn.execute("DELETE FROM urls_enviadas WHERE enviado_en < datetime('now', ?)", (f'-{dias} days',))
+    conn.execute("DELETE FROM urls_enviadas WHERE enviado_en < datetime('now', ?)",
+                 (f'-{dias} days',))
     conn.commit()
     conn.close()
