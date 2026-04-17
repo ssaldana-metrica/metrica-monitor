@@ -24,9 +24,10 @@ body{font-family:'Inter',sans-serif;background:#f5f5f5;color:#1a1a1a;line-height
 .form-grid{display:grid;gap:16px}
 .form-group{display:flex;flex-direction:column;gap:6px}
 .form-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#6B7280}
-.form-input,.form-select{padding:12px 14px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;font-family:'Inter',sans-serif;color:#1a1a1a;background:#fff;transition:all 0.2s}
-.form-input:focus,.form-select:focus{outline:none;border-color:#1E90FF;box-shadow:0 0 0 3px rgba(30,144,255,0.1)}
-.form-input::placeholder{color:#9CA3AF}
+.form-input,.form-select,.form-textarea{padding:12px 14px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;font-family:'Inter',sans-serif;color:#1a1a1a;background:#fff;transition:all 0.2s}
+.form-input:focus,.form-select:focus,.form-textarea:focus{outline:none;border-color:#1E90FF;box-shadow:0 0 0 3px rgba(30,144,255,0.1)}
+.form-input::placeholder,.form-textarea::placeholder{color:#9CA3AF}
+.form-textarea{resize:vertical;min-height:64px;line-height:1.5}
 .form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .btn{padding:12px 20px;border-radius:6px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;cursor:pointer;border:none;transition:all 0.2s;font-family:'Inter',sans-serif}
 .btn-primary{background:#1E90FF;color:#fff;width:100%;box-shadow:0 2px 4px rgba(30,144,255,0.2)}
@@ -35,12 +36,14 @@ body{font-family:'Inter',sans-serif;background:#f5f5f5;color:#1a1a1a;line-height
 .btn-delete:hover{background:#FEE}
 .info-box{background:#EFF6FF;border-left:3px solid #1E90FF;padding:14px 16px;border-radius:6px;font-size:12px;line-height:1.6;color:#374151;margin-bottom:16px}
 .info-box strong{color:#1E90FF;font-weight:700;display:block;margin-bottom:4px}
+.context-hint{font-size:11px;color:#6B7280;margin-top:4px;font-style:italic}
 .list{display:grid;gap:10px}
 .list-item{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:#fafafa;border:1px solid #e5e7eb;border-radius:6px;gap:12px;transition:all 0.2s}
 .list-item:hover{background:#fff;border-color:#1E90FF;box-shadow:0 2px 4px rgba(30,144,255,0.1)}
 .list-content{flex:1;min-width:0}
 .list-title{font-size:14px;font-weight:700;margin-bottom:4px;display:flex;align-items:center;gap:8px}
 .list-meta{font-size:11px;color:#6B7280}
+.list-context{font-size:11px;color:#6B7280;margin-top:2px;font-style:italic;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .badge{padding:3px 8px;border-radius:4px;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.3px}
 .badge-alert{background:#FEF3C7;color:#92400E}
 .badge-daily{background:#DBEAFE;color:#1E40AF}
@@ -105,6 +108,11 @@ body{font-family:'Inter',sans-serif;background:#f5f5f5;color:#1a1a1a;line-height
 <form method="POST" action="/buscar" id="search-form">
 <div class="form-grid">
 <div class="form-group"><label class="form-label">Query</label><input type="text" name="keyword" class="form-input" placeholder='"Brand" OR crisis' required></div>
+<div class="form-group">
+<label class="form-label">Context <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></label>
+<textarea name="contexto" class="form-textarea" placeholder='e.g. "Peruvian energy company, also known as Kallpa Generacion" — helps AI distinguish from other entities with the same name'></textarea>
+<span class="context-hint">💡 Use this when the keyword is ambiguous (same name as a person, artist, etc.)</span>
+</div>
 <div class="form-row">
 <div class="form-group"><label class="form-label">From</label><input type="date" name="fecha_inicio" class="form-input"></div>
 <div class="form-group"><label class="form-label">To</label><input type="date" name="fecha_fin" class="form-input"></div>
@@ -129,6 +137,11 @@ body{font-family:'Inter',sans-serif;background:#f5f5f5;color:#1a1a1a;line-height
 <form method="POST" action="/keywords/agregar" style="margin-bottom:20px">
 <div class="form-grid">
 <div class="form-group"><label class="form-label">Keyword</label><input type="text" name="keyword" class="form-input" placeholder='e.g. "Company" +crisis' required></div>
+<div class="form-group">
+<label class="form-label">Context <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></label>
+<textarea name="contexto" class="form-textarea" placeholder='e.g. "Peruvian insurer, also called La Positiva Seguros"'></textarea>
+<span class="context-hint">💡 Helps AI ignore mentions of other entities with the same name</span>
+</div>
 <div class="form-row">
 <div class="form-group"><label class="form-label">Mode</label>
 <select name="modo" id="modo-sel" class="form-select" onchange="toggleFreq(this.value)">
@@ -157,6 +170,7 @@ body{font-family:'Inter',sans-serif;background:#f5f5f5;color:#1a1a1a;line-height
 {{ kw.keyword }}
 </div>
 <div class="list-meta">{% if kw.modo == 'alerta' %}Every {{ kw.frecuencia_horas }} min{% else %}Daily 12pm{% endif %} · Since {{ kw.creada_en[:10] }}</div>
+{% if kw.contexto %}<div class="list-context">📌 {{ kw.contexto[:80] }}{% if kw.contexto|length > 80 %}…{% endif %}</div>{% endif %}
 </div>
 <form method="POST" action="/keywords/eliminar">
 <input type="hidden" name="keyword_id" value="{{ kw.id }}">
