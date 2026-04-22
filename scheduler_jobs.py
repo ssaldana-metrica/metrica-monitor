@@ -10,6 +10,7 @@ BUGS RESUELTOS:
   Bug 3 — job_diario sin novedades mandaba vacío → email de aviso (ya corregido antes)
 """
 
+import re
 import time
 from datetime import datetime, timedelta
 
@@ -27,6 +28,35 @@ from motor import buscar_keyword
 from tono import analizar_resultados
 
 scheduler = BackgroundScheduler(timezone="America/Lima")
+
+
+def _normalizar_url_para_db(url):
+    """
+    Normaliza URL antes de guardar/consultar en urls_enviadas.
+    Elimina www., parametros de tracking y slash final.
+    Garantiza que la misma noticia no se envíe dos veces
+    aunque Serper devuelva la URL con ligeras variaciones.
+    """
+    if not url:
+        return url
+    u = url
+    for schema in ("https://","http://"):
+        if u.lower().startswith(schema):
+            u = u[len(schema):]
+            break
+    if u.lower().startswith("www."):
+        u = u[4:]
+    if "?" in u:
+        base, qs = u.split("?", 1)
+        params_limpios = [
+            p for p in qs.split("&")
+            if p and not re.match(
+                r'^(utm_|ref=|source=|fbclid=|gclid=|mc_eid=|mc_cid=|_ga=|yclid=)',
+                p, re.IGNORECASE
+            )
+        ]
+        u = base + ("?" + "&".join(params_limpios) if params_limpios else "")
+    return u.rstrip("/").lower()
 
 
 # ════════════════════════════════════════════════════
@@ -150,7 +180,7 @@ def job_alerta(kw_id: int, keyword: str, contexto: str, freq_minutos: int) -> No
         # Marcar todas las URLs como enviadas para no repetirlas
         for r in nuevos:
             if r.get("url"):
-                marcar_url_enviada(kw_id, r["url"])
+                marcar_url_enviada(kw_id, _normalizar_url_para_db(r["url"]))
         for r in nuevos:
             save_historial(kw_id, keyword, "alerta", 1, True, html)
         print(f"[ALERTA] '{keyword}': {n} noticia(s) nuevas → 1 email enviado")
@@ -205,7 +235,7 @@ def job_diario(kw_id: int, keyword: str, contexto: str) -> None:
     if ok:
         for r in nuevos:
             if r.get("url"):
-                marcar_url_enviada(kw_id, r["url"])
+                marcar_url_enviada(kw_id, _normalizar_url_para_db(r["url"]))
         print(f"[DIARIO] {len(nuevos)} URLs marcadas como enviadas")
 
     save_historial(kw_id, keyword, "diario", len(nuevos), ok, html)
