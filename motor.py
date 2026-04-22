@@ -84,13 +84,27 @@ _PATRON_EMPLEO = _re.compile(
 
 def _es_basura(url, titulo, snippet):
     dominio = get_dominio(url)
+
+    # Dominio en lista negra (e-commerce, empleo, recetas, etc.)
     if dominio in _DOMINIOS_BASURA:
         return True
     for d in _DOMINIOS_BASURA:
         if dominio.endswith("." + d):
             return True
+
+    # Fix A: perfil corporativo de red social (no es contenido periodístico)
+    if _es_perfil_social(url):
+        return True
+
+    # Fix B: snippet en idioma que no es español ni inglés
+    if _es_idioma_extranjero(url, snippet):
+        return True
+
+    # Patrón de título de oferta de empleo
     if _PATRON_EMPLEO.search(titulo):
         return True
+
+    # Palabras de producto/empleo/receta (2+ coincidencias)
     texto = (titulo + " " + snippet).lower()
     coincidencias = sum(1 for p in _PALABRAS_BASURA if p in texto)
     return coincidencias >= 2
@@ -124,6 +138,109 @@ def _es_relevante_peru(url, titulo, snippet):
             return True
     texto = (url + " " + titulo + " " + snippet).lower()
     return any(ind in texto for ind in _INDICADORES_PERU)
+
+
+# ── Fix A: perfiles corporativos de redes sociales ────────────────────────────
+#
+# Diferencia entre contenido útil y fichas de perfil:
+#   UTIL:  facebook.com/watch/?v=123  (video/post)
+#          facebook.com/permalink/... (post específico)
+#   BASURA: facebook.com/pages/Marca/ID  (ficha de página)
+#           facebook.com/NombreMarca/    (perfil directo)
+#           instagram.com/NombreMarca/   (perfil)
+#           linkedin.com/company/Nombre/ (perfil empresa)
+#
+# Regla: URLs de redes sociales que apuntan a la raíz de un perfil
+# (terminan en /pages/..., /company/..., o son perfil sin contenido)
+# no tienen valor periodístico.
+
+import re as _re2
+
+_PATRON_PERFIL_SOCIAL = _re2.compile(
+    r"facebook\.com/pages/[^/]+/\d+"          # facebook.com/pages/Marca/ID
+    r"|facebook\.com/[^/]+/?(\?.*)?$"          # facebook.com/Marca/ (raíz de perfil)
+    r"|instagram\.com/[^/]+/?(\?.*)?$"         # instagram.com/Marca/
+    r"|linkedin\.com/company/[^/]+/?(\?.*)?$"  # linkedin.com/company/Marca/
+    r"|twitter\.com/[^/]+/?(\?.*)?$"           # twitter.com/Marca/
+    r"|x\.com/[^/]+/?(\?.*)?$",                # x.com/Marca/
+    _re2.IGNORECASE
+)
+
+# Excepciones: estas rutas de Facebook/IG SÍ son contenido
+_PATRON_CONTENIDO_SOCIAL = _re2.compile(
+    r"facebook\.com/(watch|permalink|story|photo|video|reel|posts|groups)"
+    r"|instagram\.com/(p|reel|tv)/",
+    _re2.IGNORECASE
+)
+
+
+def _es_perfil_social(url):
+    """
+    True si la URL es la ficha/perfil de una marca en redes sociales,
+    no un post o contenido específico.
+    """
+    if _PATRON_CONTENIDO_SOCIAL.search(url):
+        return False  # Es contenido real, no perfil
+    return bool(_PATRON_PERFIL_SOCIAL.search(url))
+
+
+# ── Fix B: detección de idioma extranjero ─────────────────────────────────────
+#
+# Si el snippet contiene palabras características de un idioma que NO es
+# español ni inglés, el resultado no es relevante para monitoreo en Perú.
+# Aplicamos solo cuando el dominio NO es .pe (un diario peruano puede
+# tener errores de encoding pero igual es válido).
+#
+# Estrategia: listas de palabras muy frecuentes y únicas de cada idioma
+# que raramente aparecen en español o inglés.
+
+_PALABRAS_NO_ES_EN = {
+    # Italiano
+    "mi piace", "impresa locale", "informazioni", "menzioni", "dettagli",
+    "pagina non ufficiale", "ancora nessun post", "accedi", "iscriviti",
+    "trasparenza della pagina", "mostra tutto", "persone seguono",
+    # Portugués (Brasil/Portugal — diferente del español)
+    "curtir", "compartilhar", "comentários", "publicações",
+    "sobre nós", "enviar mensagem", "saiba mais", "ver mais",
+    # Francés
+    "j'aime", "partager", "commentaires", "abonnés", "suivre",
+    "en savoir plus", "voir plus", "bonjour", "entreprise locale",
+    # Alemán
+    "gefällt mir", "teilen", "kommentare", "abonnenten", "folgen",
+    "mehr erfahren", "lokales unternehmen", "impressum",
+    # Indonesio / Malayo
+    "suka", "bagikan", "komentar", "pengikut", "ikuti",
+    "pelajari selengkapnya", "bisnis lokal",
+    # Croata / Serbio / Bosnio
+    "sviđa mi se", "podijeli", "komentari", "pratitelji",
+    "lokalno poduzeće", "saznajte više",
+    # Hindú / Hindi (transliterado en latin)
+    "pasand karo", "share karo", "tippani",
+    # Árabe (transliterado)
+    "اعجبني", "مشاركة", "تعليقات",
+    # Tailandés
+    "ถูกใจ", "แชร์", "ความคิดเห็น",
+    # Japonés / Chino (caracteres)
+    "いいね", "シェア", "コメント", "喜欢", "分享", "评论",
+    # Filipino / Tagalo
+    "gusto ko ito", "ibahagi", "mga komento",
+}
+
+
+def _es_idioma_extranjero(url, snippet):
+    """
+    True si el snippet contiene palabras de un idioma que no es
+    español ni inglés, Y el dominio no es .pe.
+
+    Los dominios .pe se excluyen porque aunque tengan encoding raro
+    siguen siendo medios peruanos válidos.
+    """
+    dominio = get_dominio(url)
+    if dominio.endswith(".pe"):
+        return False  # Siempre confiar en medios peruanos
+
+    texto = snippet.lower()
+    return any(palabra in texto for palabra in _PALABRAS_NO_ES_EN)
 
 
 # ── Fix 1: fuente desde URL ───────────────────────────────────────────────────
