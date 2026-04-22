@@ -153,7 +153,7 @@ def job_alerta(kw_id: int, keyword: str, contexto: str, freq_minutos: int) -> No
     print(f"[ALERTA] Encontrados: {len(todos)} en ventana de {horas_ventana}h")
 
     # ── Filtrar URLs ya enviadas ─────────────────────────────────────
-    nuevos = [r for r in todos if r.get("url") and not url_ya_enviada(kw_id, r["url"])]
+    nuevos = [r for r in todos if r.get("url") and not url_ya_enviada(kw_id, _normalizar_url_para_db(r["url"]))]
 
     # ── Fix Bug C: silencio total si no hay novedades ────────────────
     if not nuevos:
@@ -212,7 +212,7 @@ def job_diario(kw_id: int, keyword: str, contexto: str) -> None:
     )
     print(f"[DIARIO] Encontrados: {len(todos)} resultados en rango")
 
-    nuevos = [r for r in todos if not url_ya_enviada(kw_id, r["url"])]
+    nuevos = [r for r in todos if r.get("url") and not url_ya_enviada(kw_id, _normalizar_url_para_db(r["url"]))]
     repetidos = len(todos) - len(nuevos)
     if repetidos > 0:
         print(f"[DIARIO] Descartados {repetidos} ya enviados anteriormente")
