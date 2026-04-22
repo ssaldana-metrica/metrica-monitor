@@ -236,29 +236,65 @@ _ENTIDAD_EMPRESARIAL = {
 }
 
 
-def _es_relevante_peru(url, titulo, snippet):
-    """True si el resultado tiene conexion real con Peru."""
-    dominio = get_dominio(url)
+def _es_relevante_peru(url, titulo, snippet, contexto=""):
+    """
+    True si el resultado tiene conexion real con Peru Y con la marca buscada.
 
-    # Dominio peruano → siempre relevante
+    Cuando hay contexto (ej: "aseguradora peruana"), verifica ademas que
+    el resultado sea sobre la entidad correcta y no un homonimo
+    (ej: distrito Rimac vs Rimac Seguros, palabra "gloria" vs empresa Gloria).
+    """
+    dominio = get_dominio(url)
+    texto   = (titulo + " " + snippet).lower()
+
+    # ── Filtro semantico por contexto (aplica a TODOS los dominios) ──
+    # Si hay contexto, al menos un token del contexto debe aparecer
+    # en titulo o snippet para confirmar que es la entidad correcta.
+    if contexto and contexto.strip():
+        tokens_ctx = _tokens_contexto(contexto, max_tokens=3)
+        if tokens_ctx:
+            tiene_token_ctx = any(t in texto for t in tokens_ctx)
+            if not tiene_token_ctx:
+                # El resultado no menciona ningun termino del contexto.
+                # Puede ser el homonimo (distrito, nombre comun, etc.)
+                # Excepcion: si el dominio es .pe Y la keyword aparece
+                # como nombre propio en el titulo → podria ser noticia real
+                # En ese caso dejamos que Claude decida con el analisis de tono.
+                # Pero si el snippet es claramente sobre otra cosa → descartar.
+                if not dominio.endswith(".pe"):
+                    return False
+                # Para .pe: solo descartar si hay señales claras de homonimo
+                # (ej: "distrito", "asentamiento", "vecinos" para Rimac distrito)
+                # Señales de que la keyword es un homonimo (lugar, concepto, etc.)
+                _HOMONIMOS = {
+                    # Rimac como distrito
+                    "distrito","asentamiento","vecinos del","barrio","jiron","av.","avenida",
+                    "crimen","asesinato","balazos","explosivo","sicario","delincuente",
+                    # Gloria/cristal/sol como sustantivos comunes
+                    "en busca de","busca la","por la gloria","sin pena","la gloria",
+                    "brilla el sol","bajo el sol","tomar el sol","amor y gloria",
+                    "cristal de","cristal transparente","copa de cristal",
+                    # Rio, cerro, lugar con nombre de marca
+                    "rio rimac","cerro","quebrada","margen del",
+                }
+                if any(h in texto for h in _HOMONIMOS):
+                    return False
+
+    # ── Filtro geografico Peru ────────────────────────────────────────
+    # Dominio peruano → siempre relevante geograficamente
     if dominio.endswith(".pe"):
         return True
 
     # Medios internacionales de referencia → verificar mencion de Peru
     for d in _DOMINIOS_LATAM_OK:
         if dominio == d or dominio.endswith("." + d):
-            texto = (titulo + " " + snippet).lower()
             return any(ind in texto for ind in _INDICADORES_PERU)
 
-    texto = (titulo + " " + snippet).lower()
-
-    # Dominio de otro pais LATAM: exigir contexto empresarial/institucional,
-    # no solo mencion de Peru como locacion de una persona extranjera
+    # Dominio de otro pais LATAM
     es_otro_pais = any(dominio.endswith(s) for s in _SUFIJOS_OTROS_PAISES)
     if es_otro_pais:
         if not any(ind in texto for ind in _INDICADORES_PERU):
             return False
-        # Si Peru aparece solo como locacion casual de jugador/persona → descartar
         es_solo_locacion = any(loc in texto for loc in _LOCACION_CASUAL)
         tiene_entidad = any(e in texto for e in _ENTIDAD_EMPRESARIAL)
         if es_solo_locacion and not tiene_entidad:
@@ -266,13 +302,11 @@ def _es_relevante_peru(url, titulo, snippet):
         return True
 
     # Dominio generico (.com, .net, .org)
-    # Verificar que Peru no aparezca solo como locacion casual de persona extranjera
     tiene_ind = any(ind in texto for ind in _INDICADORES_PERU)
     if not tiene_ind:
         return False
-    # Si la unica aparicion de Peru es como locacion de persona y no hay entidad → descartar
     es_solo_locacion = any(loc in texto for loc in _LOCACION_CASUAL)
-    tiene_entidad = any(e in texto for e in _ENTIDAD_EMPRESARIAL)
+    tiene_entidad    = any(e in texto for e in _ENTIDAD_EMPRESARIAL)
     if es_solo_locacion and not tiene_entidad:
         return False
     return True
@@ -381,11 +415,24 @@ def _dentro_de_rango(fecha_str, fecha_inicio, fecha_fin):
 # CONTEXTO Y VARIACIONES
 # ════════════════════════════════════════════════════
 
-def _enriquecer_query(keyword, contexto=""):
+def _tokens_contexto(contexto, max_tokens=2):
+    """Extrae tokens significativos del contexto para enriquecer queries."""
     if not contexto or not contexto.strip():
-        return keyword
-    _STOP = {"para","como","también","llamada","conocida","empresa","compania","grupo","peruana","peruano","perú","peru"}
-    tokens = [t for t in re.split(r'\W+', contexto.lower()) if len(t)>=4 and t not in _STOP][:2]
+        return []
+    _STOP = {
+        "para","como","también","llamada","conocida","empresa","compania",
+        "grupo","peruana","peruano","perú","peru","tambien","también",
+        "conocido","conocida","llamado","llamada","sociedad","anonima",
+    }
+    return [
+        t for t in re.split(r'\W+', contexto.lower())
+        if len(t) >= 4 and t not in _STOP
+    ][:max_tokens]
+
+
+def _enriquecer_query(keyword, contexto=""):
+    """Agrega hasta 2 tokens del contexto a la keyword."""
+    tokens = _tokens_contexto(contexto)
     return f"{keyword} {' '.join(tokens)}" if tokens else keyword
 
 
@@ -395,23 +442,47 @@ def _fuente_desde_url(url):
 
 
 def generar_variaciones(keyword, contexto=""):
-    """Genera hasta 3 variaciones. Siempre incluye Peru para forzar resultados locales."""
-    base       = keyword.strip()
-    query_rica = _enriquecer_query(base, contexto)
+    """
+    Genera hasta 3 variaciones de busqueda.
+
+    LOGICA CON CONTEXTO (ej: keyword="Rimac", contexto="aseguradora peruana"):
+      tokens = ["aseguradora"]   <- extraidos del contexto
+      1. "Rimac aseguradora"     <- query rica con contexto
+      2. "Rimac aseguradora" Peru <- con Peru para forzar resultados locales
+      3. "Rimac" seguros         <- segunda variacion con sinonimo si hay
+
+    LOGICA SIN CONTEXTO (ej: keyword="Chinalco"):
+      1. Chinalco                <- keyword directa
+      2. "Chinalco" Peru         <- con comillas + Peru
+      3. Chinalco Peru           <- sin comillas + Peru
+
+    CLAVE: cuando hay contexto, NUNCA generamos la keyword sola sin
+    el termino diferenciador, porque eso trae resultados contaminados
+    (distrito Rimac, nombre comun Gloria, etc.)
+    """
+    base   = keyword.strip()
+    tokens = _tokens_contexto(contexto, max_tokens=2)
     tiene_peru = "peru" in base.lower() or "perú" in base.lower()
+    sin_comillas = base.replace('"','').strip()
 
-    variaciones = [query_rica]
-    if not tiene_peru:
-        sin_comillas = base.replace('"','').strip()
-        variaciones.append(f'"{sin_comillas}" Peru' if '"' not in base else f"{base} Peru")
-    elif '"' not in base:
-        variaciones.append(f'"{base}"')
-    if base not in variaciones:
-        variaciones.append(base)
+    if tokens:
+        # CON CONTEXTO: todas las variaciones llevan el diferenciador
+        t1 = tokens[0]
+        t2 = tokens[1] if len(tokens) > 1 else t1
 
+        v1 = f"{base} {t1}"                         # "Rimac aseguradora"
+        v2 = f"{base} {t1} Peru" if not tiene_peru else f'"{sin_comillas}" {t1}'
+        v3 = f'"{sin_comillas}" {t2}' if t2 != t1 else f"{base} {t1} seguros"
+    else:
+        # SIN CONTEXTO: variaciones normales con Peru forzado
+        v1 = base
+        v2 = f'"{sin_comillas}" Peru' if not tiene_peru else f'"{sin_comillas}"'
+        v3 = f"{base} Peru" if not tiene_peru else base
+
+    # Deduplicar manteniendo orden
     seen, unicas = set(), []
-    for v in variaciones:
-        if v not in seen:
+    for v in [v1, v2, v3]:
+        if v and v not in seen:
             seen.add(v)
             unicas.append(v)
     return unicas[:3]
@@ -515,7 +586,7 @@ def buscar_keyword(keyword, fecha_inicio=None, fecha_fin=None, num=20, contexto=
             if not _dentro_de_rango(r["fecha"], fecha_inicio, fecha_fin): continue
             if _es_basura(r["url"], r["titulo"], r["snippet"]):
                 desc_basura += 1; continue
-            if not _es_relevante_peru(r["url"], r["titulo"], r["snippet"]):
+            if not _es_relevante_peru(r["url"], r["titulo"], r["snippet"], contexto):
                 desc_peru += 1; continue
             todos.setdefault(hashlib.md5(r["url"].encode()).hexdigest(), r)
 
@@ -525,7 +596,7 @@ def buscar_keyword(keyword, fecha_inicio=None, fecha_fin=None, num=20, contexto=
             if not _dentro_de_rango(r["fecha"], fecha_inicio, fecha_fin): continue
             if _es_basura(r["url"], r["titulo"], r["snippet"]):
                 desc_basura += 1; continue
-            if not _es_relevante_peru(r["url"], r["titulo"], r["snippet"]):
+            if not _es_relevante_peru(r["url"], r["titulo"], r["snippet"], contexto):
                 desc_peru += 1; continue
             todos.setdefault(hashlib.md5(r["url"].encode()).hexdigest(), r)
 
@@ -535,7 +606,7 @@ def buscar_keyword(keyword, fecha_inicio=None, fecha_fin=None, num=20, contexto=
     for r in buscar_youtube(query_yt, fecha_inicio, fecha_fin, min(5,max(3,num//6))):
         if not r["url"]: continue
         if not _dentro_de_rango(r["fecha"], fecha_inicio, fecha_fin): continue
-        if not _es_relevante_peru(r["url"], r["titulo"], r["snippet"]):
+        if not _es_relevante_peru(r["url"], r["titulo"], r["snippet"], contexto):
             desc_peru += 1; continue
         todos.setdefault(hashlib.md5(r["url"].encode()).hexdigest(), r)
 
