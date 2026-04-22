@@ -21,6 +21,7 @@ def init_db():
             contexto         TEXT NOT NULL DEFAULT '',
             modo             TEXT NOT NULL DEFAULT 'diario',
             frecuencia_horas INTEGER NOT NULL DEFAULT 24,
+            hora_envio       INTEGER NOT NULL DEFAULT 12,
             activa           INTEGER NOT NULL DEFAULT 1,
             creada_en        TEXT NOT NULL
         );
@@ -51,6 +52,10 @@ def init_db():
     # ALTER TABLE IF NOT EXISTS no existe en SQLite — usamos try/except.
     try:
         c.execute("ALTER TABLE keywords_permanentes ADD COLUMN contexto TEXT NOT NULL DEFAULT ''")
+    except Exception:
+        pass
+    try:
+        c.execute("ALTER TABLE keywords_permanentes ADD COLUMN hora_envio INTEGER NOT NULL DEFAULT 12")
         conn.commit()
         print("[db] Columna 'contexto' agregada a keywords_permanentes")
     except sqlite3.OperationalError:
@@ -65,13 +70,13 @@ def get_keywords_permanentes():
     return [dict(r) for r in rows]
 
 
-def save_keyword_permanente(keyword: str, contexto: str, modo: str, frecuencia_horas: int):
+def save_keyword_permanente(keyword: str, contexto: str, modo: str, frecuencia_horas: int, hora_envio: int = 12):
     conn = get_conn()
     conn.execute(
         """INSERT INTO keywords_permanentes
-           (keyword, contexto, modo, frecuencia_horas, activa, creada_en)
+           (keyword, contexto, modo, frecuencia_horas, hora_envio, activa, creada_en)
            VALUES (?,?,?,?,1,?)""",
-        (keyword, contexto, modo, frecuencia_horas, datetime.now().isoformat())
+        (keyword, contexto, modo, frecuencia_horas, hora_envio, datetime.now().isoformat())
     )
     conn.commit()
     conn.close()
