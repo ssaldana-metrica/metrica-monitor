@@ -133,7 +133,7 @@ body{font-family:'Inter',sans-serif;background:#f5f5f5;color:#1a1a1a;line-height
 <div class="panel">
 <div class="panel-hdr"><div class="panel-title"><span class="panel-icon">⚡</span>Active Monitoring</div></div>
 <div class="panel-body">
-<div class="info-box"><strong>⚡ Instant Alert</strong> Scans every X minutes. Email only when new mentions appear.<strong style="margin-top:8px">📅 Daily Digest</strong> Consolidated report at 12pm with AI analysis.</div>
+<div class="info-box"><strong>⚡ Instant Alert</strong> Scans every X minutes. Email only when new mentions appear.<strong style="margin-top:8px">📅 Daily Digest</strong> Consolidated report sent at the time you choose.</div>
 <form method="POST" action="/keywords/agregar" style="margin-bottom:20px">
 <div class="form-grid">
 <div class="form-group"><label class="form-label">Keyword</label><input type="text" name="keyword" class="form-input" placeholder='e.g. "Company" +crisis' required></div>
@@ -149,11 +149,29 @@ body{font-family:'Inter',sans-serif;background:#f5f5f5;color:#1a1a1a;line-height
 <option value="diario" selected>📅 Daily</option>
 </select>
 </div>
-<div class="form-group" id="freq-wrap"><label class="form-label">Frequency</label>
+<!-- Frecuencia: solo visible en modo Instant -->
+<div class="form-group" id="freq-wrap" style="display:none"><label class="form-label">Frequency</label>
 <select name="frecuencia_horas" class="form-select">
 <option value="5">5 min</option>
 <option value="10">10 min</option>
 <option value="15" selected>15 min</option>
+</select>
+</div>
+<!-- Hora de envío: solo visible en modo Daily -->
+<div class="form-group" id="hora-wrap"><label class="form-label">Send time</label>
+<select name="hora_envio" class="form-select">
+<option value="7">7:00 AM</option>
+<option value="8">8:00 AM</option>
+<option value="9">9:00 AM</option>
+<option value="10">10:00 AM</option>
+<option value="11">11:00 AM</option>
+<option value="12" selected>12:00 PM</option>
+<option value="13">1:00 PM</option>
+<option value="14">2:00 PM</option>
+<option value="15">3:00 PM</option>
+<option value="16">4:00 PM</option>
+<option value="17">5:00 PM</option>
+<option value="18">6:00 PM</option>
 </select>
 </div>
 </div>
@@ -169,7 +187,18 @@ body{font-family:'Inter',sans-serif;background:#f5f5f5;color:#1a1a1a;line-height
 {% if kw.modo == 'alerta' %}<span class="badge badge-alert">ALERT</span>{% else %}<span class="badge badge-daily">DAILY</span>{% endif %}
 {{ kw.keyword }}
 </div>
-<div class="list-meta">{% if kw.modo == 'alerta' %}Every {{ kw.frecuencia_horas }} min{% else %}Daily 12pm{% endif %} · Since {{ kw.creada_en[:10] }}</div>
+<div class="list-meta">
+{% if kw.modo == 'alerta' %}
+  Every {{ kw.frecuencia_horas }} min
+{% else %}
+  Daily {{ '%d:%02d %s' | format(
+    (kw.hora_envio or 12) if (kw.hora_envio or 12) <= 12 else (kw.hora_envio or 12) - 12,
+    0,
+    'AM' if (kw.hora_envio or 12) < 12 else 'PM'
+  ) }}
+{% endif %}
+ · Since {{ kw.creada_en[:10] }}
+</div>
 {% if kw.contexto %}<div class="list-context">📌 {{ kw.contexto[:80] }}{% if kw.contexto|length > 80 %}…{% endif %}</div>{% endif %}
 </div>
 <form method="POST" action="/keywords/eliminar">
@@ -261,8 +290,12 @@ body{font-family:'Inter',sans-serif;background:#f5f5f5;color:#1a1a1a;line-height
 </div>
 </div>
 <script>
-function toggleFreq(modo){document.getElementById('freq-wrap').style.display=modo==='alerta'?'block':'none'}
+function toggleFreq(modo) {
+  document.getElementById('freq-wrap').style.display = modo === 'alerta' ? 'block' : 'none';
+  document.getElementById('hora-wrap').style.display  = modo === 'diario'  ? 'block' : 'none';
+}
 toggleFreq(document.getElementById('modo-sel').value);
+
 function showLoading(){const loading=document.getElementById('loading');const bar=document.getElementById('progress-bar');const pct=document.getElementById('progress-pct');const step=document.getElementById('loading-step');loading.style.display='flex';let i=0;const steps=[{p:0,s:0,t:'Initializing...',d:200},{p:20,s:1,t:'Searching Google News...',d:800},{p:40,s:2,t:'Searching Google Web...',d:800},{p:60,s:3,t:'Searching YouTube...',d:800},{p:80,s:4,t:'Analyzing sentiment with AI...',d:1000},{p:95,s:5,t:'Generating report...',d:800},{p:100,s:5,t:'Complete!',d:500}];function run(){if(i<steps.length){const st=steps[i];bar.style.width=st.p+'%';pct.textContent=st.p+'%';step.textContent=st.t;if(st.s>0){const el=document.getElementById('step-'+st.s);el.classList.add('done');el.querySelector('.step-bullet').textContent='✓'}i++;setTimeout(run,st.d)}}run()}
 document.getElementById('search-form').addEventListener('submit',function(e){e.preventDefault();showLoading();setTimeout(()=>this.submit(),4500)});
 </script>
