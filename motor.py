@@ -41,6 +41,7 @@ _DOMINIOS_BASURA = {
     "cookpad.com","recetasnestle.com.pe",
     # Empleo global
     "indeed.com","glassdoor.com","monster.com","ziprecruiter.com",
+    "linkedin.com",                                        # jobs y perfiles
     # Empleo Peru y Latam
     "computrabajo.com","computrabajo.com.pe","bumeran.com","bumeran.com.pe",
     "aptitus.com","trabajando.com","jooble.org","jobrapido.com",
@@ -48,6 +49,13 @@ _DOMINIOS_BASURA = {
     "laboro.com.pe","empleo.com.pe","jobomas.com","multitrabajos.com",
     "opcionempleo.com","kronos.pe","adecco.com.pe","manpower.com.pe",
     "hays.com.pe","michaelpage.com.pe",
+    # Retail y construccion Peru — fichas de producto, no noticias
+    "promart.pe","promart.com.pe",                         # BUG: antes solo .com.pe
+    "sodimac.com.pe","maestro.com.pe","casaeideas.com.pe",
+    # Portales de capacitacion, cursos y eventos — no noticias periodisticas
+    "formate.pe","capacitate.pe","eventbrite.com","eventbrite.pe",
+    "udemy.com","coursera.org","platzi.com","crehana.com",
+    "meetup.com","ticketmaster.com.pe","joinnus.com",
     # Directorios y reviews
     "yellowpages.com","yelp.com","tripadvisor.com",
     "trustpilot.com","sitejabber.com",
@@ -581,6 +589,58 @@ def buscar_youtube(keyword, fecha_inicio=None, fecha_fin=None, num=5):
         return []
 
 
+# Parametros de tracking que no forman parte de la identidad de la URL
+_PARAMS_TRACKING = re.compile(
+    r'[?&](utm_[^&]*|ref=[^&]*|source=[^&]*|fbclid=[^&]*|gclid=[^&]*'
+    r'|mc_eid=[^&]*|mc_cid=[^&]*|_ga=[^&]*|yclid=[^&]*)(&|$)',
+    re.IGNORECASE
+)
+
+
+def _normalizar_url(url):
+    """
+    Normaliza una URL para deduplicacion robusta.
+    Elimina: www., parametros de tracking (?utm_*, ?ref=*, etc.)
+    Mantiene: path, query params relevantes (paginacion, IDs de articulo).
+
+    Ejemplos:
+      https://www.promart.pe/producto?utm_source=google  → promart.pe/producto
+      https://gestion.pe/nota?ref=serper                 → gestion.pe/nota
+      https://gestion.pe/nota?p=12345                    → gestion.pe/nota?p=12345
+    """
+    if not url:
+        return url
+    # Quitar schema
+    u = url.lower()
+    for schema in ("https://","http://"):
+        if u.startswith(schema):
+            u = url[len(schema):]
+            break
+    # Quitar www.
+    if u.lower().startswith("www."):
+        u = u[4:]
+    # Quitar parametros de tracking del query string
+    if "?" in u:
+        base, qs = u.split("?", 1)
+        # Filtrar solo params de tracking, mantener otros
+        params_limpios = []
+        for param in qs.split("&"):
+            if param and not re.match(
+                r'^(utm_|ref=|source=|fbclid=|gclid=|mc_eid=|mc_cid=|_ga=|yclid=)',
+                param, re.IGNORECASE
+            ):
+                params_limpios.append(param)
+        u = base + ("?" + "&".join(params_limpios) if params_limpios else "")
+    # Quitar slash final
+    u = u.rstrip("/")
+    return u
+
+
+def _url_hash(url):
+    """Hash de URL normalizada para deduplicacion robusta."""
+    return hashlib.md5(_normalizar_url(url).encode()).hexdigest()
+
+
 def _parsear(item, tipo):
     url     = item.get("link","")
     source  = item.get("source","").strip()
@@ -615,7 +675,7 @@ def buscar_keyword(keyword, fecha_inicio=None, fecha_fin=None, num=20, contexto=
                 desc_basura += 1; continue
             if not _es_relevante_peru(r["url"], r["titulo"], r["snippet"], contexto):
                 desc_peru += 1; continue
-            todos.setdefault(hashlib.md5(r["url"].encode()).hexdigest(), r)
+            todos.setdefault(_url_hash(r["url"]), r)
 
         for item in buscar_news(kw, num_por_variacion):
             r = _parsear(item, "news")
@@ -625,7 +685,7 @@ def buscar_keyword(keyword, fecha_inicio=None, fecha_fin=None, num=20, contexto=
                 desc_basura += 1; continue
             if not _es_relevante_peru(r["url"], r["titulo"], r["snippet"], contexto):
                 desc_peru += 1; continue
-            todos.setdefault(hashlib.md5(r["url"].encode()).hexdigest(), r)
+            todos.setdefault(_url_hash(r["url"]), r)
 
         time.sleep(0.2)
 
@@ -635,7 +695,7 @@ def buscar_keyword(keyword, fecha_inicio=None, fecha_fin=None, num=20, contexto=
         if not _dentro_de_rango(r["fecha"], fecha_inicio, fecha_fin): continue
         if not _es_relevante_peru(r["url"], r["titulo"], r["snippet"], contexto):
             desc_peru += 1; continue
-        todos.setdefault(hashlib.md5(r["url"].encode()).hexdigest(), r)
+        todos.setdefault(_url_hash(r["url"]), r)
 
     resultados = sorted(todos.values(), key=lambda x: (int(x["es_red"]), orden_tier(x["tier"])))
     print(f"[motor] '{keyword}': {len(resultados)} resultados | basura={desc_basura} fuera-peru={desc_peru}")
