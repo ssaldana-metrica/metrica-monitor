@@ -65,11 +65,32 @@ def _construir_prompt(keyword, contexto):
     return _PROMPT_BASE.format(contexto_bloque=bloque)
 
 
+def _normalizar(texto):
+    """
+    Elimina tildes/acentos para comparacion robusta.
+    "rímac" == "rimac", "Perú" == "Peru", etc.
+    """
+    reemplazos = {
+        "á":"a","é":"e","í":"i","ó":"o","ú":"u","ü":"u","ñ":"n",
+        "à":"a","è":"e","ì":"i","ò":"o","ù":"u",
+    }
+    t = texto.lower()
+    for con_tilde, sin_tilde in reemplazos.items():
+        t = t.replace(con_tilde, sin_tilde)
+    return t
+
+
 def _keyword_presente(keyword, titulo, snippet):
-    texto  = (titulo + " " + snippet).lower()
-    tokens = [t for t in re.split(r'\W+', keyword.lower()) if len(t) >= 4]
+    """
+    True si al menos un token de la keyword aparece en titulo+snippet.
+    Normaliza acentos para que "rimac" matchee "rimac" y viceversa.
+    """
+    # Normalizar todo para comparacion sin acentos
+    texto  = _normalizar(titulo + " " + snippet)
+    kw_norm = _normalizar(keyword)
+    tokens = [t for t in re.split(r'\W+', kw_norm) if len(t) >= 4]
     if not tokens:
-        kw_clean = keyword.lower().strip()
+        kw_clean = kw_norm.strip()
         return len(kw_clean) >= 3 and kw_clean in texto
     return any(token in texto for token in tokens)
 
