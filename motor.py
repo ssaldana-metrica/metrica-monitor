@@ -56,6 +56,13 @@ _DOMINIOS_BASURA = {
     "formate.pe","capacitate.pe","eventbrite.com","eventbrite.pe",
     "udemy.com","coursera.org","platzi.com","crehana.com",
     "meetup.com","ticketmaster.com.pe","joinnus.com",
+    # Directorios financieros y perfiles ejecutivos — no son noticias
+    "marketscreener.com","marketwatch.com","macrotrends.net",
+    "craft.co","dnb.com","zoominfo.com","hoovers.com",
+    "crunchbase.com","pitchbook.com","owler.com",
+    "manta.com","kompass.com","empresite.eleconomista.es",
+    # Portales de practicas universitarias
+    "practicas.pe","practicasprofesionales.pe","tecoloco.com",
     # Directorios y reviews
     "yellowpages.com","yelp.com","tripadvisor.com",
     "trustpilot.com","sitejabber.com",
@@ -89,6 +96,20 @@ _PALABRAS_BASURA = {
 _PATRON_EMPLEO = re.compile(
     r"(en\s+\w+,\s*\w+\s*[-]\s*(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\s+\d{4})"
     r"|([-]\s*(jobrapido|jooble|bumeran|computrabajo|aptitus|mipleo|indeed|glassdoor|trabajando)\.)",
+    re.IGNORECASE
+)
+
+# Patron de titulo de directorio/perfil ejecutivo (no son noticias)
+# Ejemplos: "Alexandra Ospina - MarketScreener", "empresas - enfokedirecto.com"
+_PATRON_DIRECTORIO = re.compile(
+    r"^(empresas|companies|executive|perfil|directorio|ranking|lista de|listado)\s*[-–]"
+    r"|[-–]\s*(marketscreener|crunchbase|craft\.co|dnb\.com|zoominfo|hoovers|manta\.com)",
+    re.IGNORECASE
+)
+
+# Patron de titulo de lista de practicas/pasantias
+_PATRON_PRACTICAS = re.compile(
+    r"(practicas|pasantias|internship|practicantes).{0,30}(20\d\d|peru|empresas)",
     re.IGNORECASE
 )
 
@@ -223,6 +244,10 @@ def _es_basura(url, titulo, snippet):
     if _es_post_publicitario(url, titulo, snippet):
         return True
     if _PATRON_EMPLEO.search(titulo):
+        return True
+    if _PATRON_DIRECTORIO.search(titulo):
+        return True
+    if _PATRON_PRACTICAS.search(titulo):
         return True
     texto = (titulo + " " + snippet).lower()
     return sum(1 for p in _PALABRAS_BASURA if p in texto) >= 2
