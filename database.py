@@ -57,7 +57,7 @@ def init_db():
     try:
         c.execute("ALTER TABLE keywords_permanentes ADD COLUMN hora_envio INTEGER NOT NULL DEFAULT 12")
         conn.commit()
-        print("[db] Columna 'contexto' agregada a keywords_permanentes")
+        print("[db] Columna 'hora_envio' agregada a keywords_permanentes")
     except sqlite3.OperationalError:
         pass  # Ya existía — normal en deploys posteriores al primero
     conn.close()
@@ -75,7 +75,7 @@ def save_keyword_permanente(keyword: str, contexto: str, modo: str, frecuencia_h
     conn.execute(
         """INSERT INTO keywords_permanentes
            (keyword, contexto, modo, frecuencia_horas, hora_envio, activa, creada_en)
-           VALUES (?,?,?,?,1,?)""",
+           VALUES (?,?,?,?,?,1,?)""",
         (keyword, contexto, modo, frecuencia_horas, hora_envio, datetime.now().isoformat())
     )
     conn.commit()
