@@ -24,34 +24,62 @@ YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY", "")
 # ── Fix 2: dominios basura ────────────────────────────────────────────────────
 
 _DOMINIOS_BASURA = {
+    # E-commerce
     "amazon.com","amazon.com.mx","ebay.com","aliexpress.com",
     "mercadolibre.com","mercadolibre.com.pe","falabella.com",
     "ripley.com.pe","oechsle.pe","saga.pe","linio.com.pe",
     "shopee.com","shopify.com","walmart.com","costco.com",
+    # Marcas corporativas (no son medios)
     "samsung.com","lg.com","sony.com","apple.com","microsoft.com",
     "ajinomoto.com","nestle.com","unilever.com","pg.com",
     "coca-cola.com","pepsi.com","bimbo.com","gloria.com.pe",
+    # Recetas
     "allrecipes.com","food.com","epicurious.com","yummly.com",
     "cookpad.com","recetasnestle.com.pe",
-    "indeed.com","computrabajo.com.pe","bumeran.com.pe",
-    "aptitus.com","glassdoor.com","trabajando.com",
+    # Empleo global
+    "indeed.com","glassdoor.com","monster.com","ziprecruiter.com",
+    # Empleo Peru y Latam
+    "computrabajo.com","computrabajo.com.pe","bumeran.com","bumeran.com.pe",
+    "aptitus.com","trabajando.com","jooble.org","jobrapido.com",
+    "mipleo.com.pe","trabajosperu.com","portaldetrabajo.pe",
+    "laboro.com.pe","empleo.com.pe","jobomas.com","multitrabajos.com",
+    "opcionempleo.com","kronos.pe","adecco.com.pe","manpower.com.pe",
+    "hays.com.pe","michaelpage.com.pe",
+    # Directorios y reviews
     "yellowpages.com","yelp.com","tripadvisor.com",
     "trustpilot.com","sitejabber.com",
+    # Enciclopedias
     "wikipedia.org","wikimedia.org",
 }
 
 _PALABRAS_BASURA = {
+    # Compra
     "comprar","buy now","add to cart","agregar al carrito",
     "precio","price","s/.","oferta","descuento","discount",
     "envio gratis","free shipping","stock disponible",
+    # Recetas
     "ingredientes","ingredients","preparacion","preparation",
-    "cocinar","receta","recipe","porciones","servings",
-    "cucharada","tablespoon",
+    "cocinar","receta","recipe","porciones","servings","cucharada","tablespoon",
+    # Empleo general
     "job description","descripcion del puesto","postular","apply now",
-    "vacante","sueldo","salary",
-    "especificaciones","specifications","garantia","warranty",
-    "manual de usuario",
+    "vacante","sueldo","salary","oferta de empleo","oferta laboral",
+    # Empleo - fichas de trabajo
+    "requiere personal","requiere profesional","se busca profesional",
+    "requisitos del cargo","perfil del puesto",
+    "bachiller en","titulado en","egresado de","licenciado en","requisitos",
+    "experiencia minima","experiencia requerida",
+    "remuneracion mensual","beneficios de ley",
+    "planilla","enviar cv","postula aqui",
+    # Producto
+    "especificaciones","specifications","garantia","warranty","manual de usuario",
 }
+
+import re as _re
+_PATRON_EMPLEO = _re.compile(
+    r"(en\s+\w+,\s*\w+\s*[-]\s*(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\s+\d{4})"
+    r"|([-]\s*(jobrapido|jooble|bumeran|computrabajo|aptitus|mipleo|indeed|glassdoor|trabajando)\.)",
+    _re.IGNORECASE
+)
 
 
 def _es_basura(url, titulo, snippet):
@@ -61,6 +89,8 @@ def _es_basura(url, titulo, snippet):
     for d in _DOMINIOS_BASURA:
         if dominio.endswith("." + d):
             return True
+    if _PATRON_EMPLEO.search(titulo):
+        return True
     texto = (titulo + " " + snippet).lower()
     coincidencias = sum(1 for p in _PALABRAS_BASURA if p in texto)
     return coincidencias >= 2
