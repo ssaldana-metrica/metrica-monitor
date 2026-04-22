@@ -90,6 +90,20 @@ _PALABRAS_BASURA = {
     "planilla","enviar cv","postula aqui",
     # Producto
     "especificaciones","specifications","garantia","warranty","manual de usuario",
+    # Tienda / comercio electronico (telecom y retail)
+    "elige tu plan","llevate tu","compra tu celular","tu celular",
+    "plan postpago","plan prepago","plan hogar","plan movil",
+    "mejor precio","al mejor precio","precio especial",
+    "cuotas sin intereses","12 cuotas","24 cuotas","36 cuotas",
+    "envio gratis","envio a todo","stock disponible","talla",
+    "agrega al carrito","agregar al carrito",
+    "oferta exclusiva","descuento exclusivo",
+    # Empleo — portales modernos (e-talent, bumeran2, etc.)
+    "cribado curricular","proceso de seleccion","proceso de reclutamiento",
+    "seleccion de personal","coordinar entrevistas","linea de carrera",
+    "sueldo competitivo","seguro medico eps","crecimiento profesional",
+    "anos de experiencia","ano de experiencia",
+    "funciones del puesto","funciones principales",
 }
 
 # Patron de titulo de oferta de empleo
@@ -227,6 +241,18 @@ def _es_tiktok_invalido(url):
     return True
 
 
+# TLDs que son siempre portales de empleo — cualquier dominio con estos sufijos es basura
+_TLD_EMPLEO = (".jobs", ".career", ".careers", ".work", ".works", ".hiring")
+
+# TLDs de tiendas corporativas — subdominio tienda.empresa.pe o tienda.empresa.com
+_SUBDOMINIOS_TIENDA = ("tienda.", "shop.", "store.", "compra.", "buy.", "ecommerce.")
+
+
+def _es_tienda_corporativa(dominio):
+    """True si el dominio es la tienda online de una marca, no su medio de prensa."""
+    return any(dominio.startswith(p) for p in _SUBDOMINIOS_TIENDA)
+
+
 def _es_basura(url, titulo, snippet):
     """True si el resultado es basura (empleo, producto, perfil, idioma extranero, tiktok invalido)."""
     dominio = get_dominio(url)
@@ -235,6 +261,12 @@ def _es_basura(url, titulo, snippet):
     for d in _DOMINIOS_BASURA:
         if dominio.endswith("." + d):
             return True
+    # TLDs de portales de empleo — .jobs, .careers, etc.
+    if any(dominio.endswith(tld) for tld in _TLD_EMPLEO):
+        return True
+    # Tiendas corporativas: tiendaclaro.pe, shop.movistar.pe, store.samsung.com, etc.
+    if _es_tienda_corporativa(dominio):
+        return True
     if _es_perfil_social(url):
         return True
     if _es_tiktok_invalido(url):
@@ -296,9 +328,15 @@ _ENTIDAD_EMPRESARIAL = {
 }
 
 
-def _es_relevante_peru(url, titulo, snippet, contexto=""):
+def _es_relevante_peru(url, titulo, snippet, contexto="", tipo="web"):
     """
     True si el resultado tiene conexion real con Peru Y con la marca buscada.
+
+    LOGICA POR TIPO:
+    - tipo="news": Serper News ya aplico gl=pe al buscar → confiamos en eso.
+      Solo aplicamos filtro de contexto/homonimo, no exigimos indicadores
+      de Peru en el snippet (que puede estar truncado).
+    - tipo="web" o "youtube": filtro completo, exigimos indicadores de Peru.
 
     Cuando hay contexto (ej: "aseguradora peruana"), verifica ademas que
     el resultado sea sobre la entidad correcta y no un homonimo
@@ -345,6 +383,18 @@ def _es_relevante_peru(url, titulo, snippet, contexto=""):
     if dominio.endswith(".pe"):
         return True
 
+    # NEWS: Serper News ya filtro con gl=pe → confiar en eso.
+    # No exigir indicadores de Peru en snippet truncado.
+    # Solo bloqueamos si hay señales claras de que es otro pais (dominio .cl, .ar, etc.)
+    # y no menciona Peru en absoluto.
+    if tipo == "news":
+        es_otro_pais_news = any(dominio.endswith(s) for s in _SUFIJOS_OTROS_PAISES)
+        if es_otro_pais_news:
+            # Para medios de otros paises, igual exigimos mencionar Peru
+            return any(ind in texto for ind in _INDICADORES_PERU)
+        # Para .com, .net, .org → confiar en Serper News + gl=pe
+        return True
+
     # Medios internacionales de referencia → verificar mencion de Peru
     for d in _DOMINIOS_LATAM_OK:
         if dominio == d or dominio.endswith("." + d):
@@ -361,7 +411,7 @@ def _es_relevante_peru(url, titulo, snippet, contexto=""):
             return False
         return True
 
-    # Dominio generico (.com, .net, .org)
+    # Dominio generico (.com, .net, .org) para tipo=web
     tiene_ind = any(ind in texto for ind in _INDICADORES_PERU)
     if not tiene_ind:
         return False
@@ -698,7 +748,7 @@ def buscar_keyword(keyword, fecha_inicio=None, fecha_fin=None, num=20, contexto=
             if not _dentro_de_rango(r["fecha"], fecha_inicio, fecha_fin): continue
             if _es_basura(r["url"], r["titulo"], r["snippet"]):
                 desc_basura += 1; continue
-            if not _es_relevante_peru(r["url"], r["titulo"], r["snippet"], contexto):
+            if not _es_relevante_peru(r["url"], r["titulo"], r["snippet"], contexto, tipo="web"):
                 desc_peru += 1; continue
             todos.setdefault(_url_hash(r["url"]), r)
 
@@ -708,7 +758,7 @@ def buscar_keyword(keyword, fecha_inicio=None, fecha_fin=None, num=20, contexto=
             if not _dentro_de_rango(r["fecha"], fecha_inicio, fecha_fin): continue
             if _es_basura(r["url"], r["titulo"], r["snippet"]):
                 desc_basura += 1; continue
-            if not _es_relevante_peru(r["url"], r["titulo"], r["snippet"], contexto):
+            if not _es_relevante_peru(r["url"], r["titulo"], r["snippet"], contexto, tipo="news"):
                 desc_peru += 1; continue
             todos.setdefault(_url_hash(r["url"]), r)
 
@@ -718,7 +768,7 @@ def buscar_keyword(keyword, fecha_inicio=None, fecha_fin=None, num=20, contexto=
     for r in buscar_youtube(query_yt, fecha_inicio, fecha_fin, min(5,max(3,num//6))):
         if not r["url"]: continue
         if not _dentro_de_rango(r["fecha"], fecha_inicio, fecha_fin): continue
-        if not _es_relevante_peru(r["url"], r["titulo"], r["snippet"], contexto):
+        if not _es_relevante_peru(r["url"], r["titulo"], r["snippet"], contexto, tipo="youtube"):
             desc_peru += 1; continue
         todos.setdefault(_url_hash(r["url"]), r)
 
