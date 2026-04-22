@@ -59,8 +59,9 @@ async def agregar_keyword(
     contexto:         str = Form(""),
     modo:             str = Form("diario"),
     frecuencia_horas: int = Form(15),
+    hora_envio:       int = Form(12),
 ):
-    save_keyword_permanente(keyword, contexto, modo, frecuencia_horas)
+    save_keyword_permanente(keyword, contexto, modo, frecuencia_horas, hora_envio)
     recargar_jobs()
     return RedirectResponse("/", status_code=303)
 
