@@ -173,8 +173,33 @@ def _es_post_publicitario(url, titulo, snippet):
     return False
 
 
+# URLs de TikTok que son videos reales vs contenido editorial/perfil
+_PATRON_TIKTOK_VALIDA = re.compile(
+    r"tiktok\.com/@[^/]+/video/\d+"   # video real: /@usuario/video/ID
+    r"|vm\.tiktok\.com/[A-Za-z0-9]+"  # short link vm.tiktok.com
+    r"|tiktok\.com/t/[A-Za-z0-9]+",   # short link tiktok.com/t/
+    re.IGNORECASE
+)
+
+
+def _es_tiktok_invalido(url):
+    """
+    True si la URL es de TikTok pero NO es un video reproducible.
+    Filtra URLs editoriales (tiktok.com/content/...), perfiles
+    (@usuario sin /video/), y páginas discover.
+    NO filtra videos reales ni short links.
+    """
+    if "tiktok.com" not in url.lower() and "vm.tiktok.com" not in url.lower():
+        return False  # No es TikTok
+    # Si es una URL valida de video → dejar pasar
+    if _PATRON_TIKTOK_VALIDA.search(url):
+        return False
+    # Es TikTok pero no es video — editorial, perfil, discover, etc.
+    return True
+
+
 def _es_basura(url, titulo, snippet):
-    """True si el resultado es basura (empleo, producto, perfil, idioma extranero)."""
+    """True si el resultado es basura (empleo, producto, perfil, idioma extranero, tiktok invalido)."""
     dominio = get_dominio(url)
     if dominio in _DOMINIOS_BASURA:
         return True
@@ -182,6 +207,8 @@ def _es_basura(url, titulo, snippet):
         if dominio.endswith("." + d):
             return True
     if _es_perfil_social(url):
+        return True
+    if _es_tiktok_invalido(url):
         return True
     if _es_idioma_extranjero(url, snippet):
         return True
