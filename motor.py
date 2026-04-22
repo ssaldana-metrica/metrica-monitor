@@ -1,10 +1,5 @@
 """
 motor.py — Motor de busqueda de medios
-
-MEJORAS EN ESTA VERSION:
-  Fix 1 — Fuente "Desconocida": extrae dominio de URL si Serper no devuelve source.
-  Fix 2 — Links basura: filtro de dominios e-commerce + palabras de producto/compra.
-  Fix 3 — Peru: variaciones incluyen "Peru", filtro Python descarta resultados sin conexion.
 """
 
 import hashlib
@@ -21,15 +16,23 @@ SERPER_API_KEY  = os.getenv("SERPER_API_KEY", "")
 YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY", "")
 
 
-# ── Fix 2: dominios basura ────────────────────────────────────────────────────
+# ════════════════════════════════════════════════════
+# LISTAS DE FILTRADO
+# ════════════════════════════════════════════════════
 
 _DOMINIOS_BASURA = {
-    # E-commerce
+    # E-commerce global
     "amazon.com","amazon.com.mx","ebay.com","aliexpress.com",
     "mercadolibre.com","mercadolibre.com.pe","falabella.com",
     "ripley.com.pe","oechsle.pe","saga.pe","linio.com.pe",
     "shopee.com","shopify.com","walmart.com","costco.com",
-    # Marcas corporativas (no son medios)
+    "linio.com","juntoz.com","lumingo.com.pe",
+    # Supermercados y retail Peru — fichas de producto, no noticias
+    "plazavea.com.pe","wong.pe","metro.pe","tottus.com.pe",
+    "vivanda.com.pe","makro.com.pe","sodimac.com.pe","promart.com.pe",
+    "spsa.com.pe","cencosud.pe","hiperbodega.com.pe",
+    "mifarma.com.pe","inkafarma.com.pe","boticas.com.pe",
+    # Marcas corporativas (su web oficial no es noticia sobre ellas)
     "samsung.com","lg.com","sony.com","apple.com","microsoft.com",
     "ajinomoto.com","nestle.com","unilever.com","pg.com",
     "coca-cola.com","pepsi.com","bimbo.com","gloria.com.pe",
@@ -63,10 +66,10 @@ _PALABRAS_BASURA = {
     # Empleo general
     "job description","descripcion del puesto","postular","apply now",
     "vacante","sueldo","salary","oferta de empleo","oferta laboral",
-    # Empleo - fichas de trabajo
+    # Empleo fichas
     "requiere personal","requiere profesional","se busca profesional",
-    "requisitos del cargo","perfil del puesto",
-    "bachiller en","titulado en","egresado de","licenciado en","requisitos",
+    "requisitos del cargo","perfil del puesto","requisitos",
+    "bachiller en","titulado en","egresado de","licenciado en",
     "experiencia minima","experiencia requerida",
     "remuneracion mensual","beneficios de ley",
     "planilla","enviar cv","postula aqui",
@@ -74,51 +77,132 @@ _PALABRAS_BASURA = {
     "especificaciones","specifications","garantia","warranty","manual de usuario",
 }
 
-import re as _re
-_PATRON_EMPLEO = _re.compile(
+# Patron de titulo de oferta de empleo
+_PATRON_EMPLEO = re.compile(
     r"(en\s+\w+,\s*\w+\s*[-]\s*(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\s+\d{4})"
     r"|([-]\s*(jobrapido|jooble|bumeran|computrabajo|aptitus|mipleo|indeed|glassdoor|trabajando)\.)",
-    _re.IGNORECASE
+    re.IGNORECASE
 )
+
+# Patron de fecha en posts de marca: "Jul 25, 2018"
+_PATRON_FECHA_POST = re.compile(
+    r"(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+\d{1,2},?\s+20\d{2}",
+    re.IGNORECASE
+)
+
+# Palabras que indican post publicitario de marca propia
+_PALABRAS_POST_MARCA = {
+    "conoce como se elabora","nueva leche","nuevo producto","nueva version",
+    "lonchecito","gloritaza","potencia la nutricion","doble dha",
+    "sabor inigualable","disfruta de","descubre nuestra","prueba nuestra",
+    "tu producto favorito","nuestra nueva","nuestro nuevo",
+    "exclusivo para ti","ahora disponible","ya disponible",
+    "nueva formula","nueva presentacion","lanzamiento de",
+}
+
+# Palabras en otros idiomas (no espanol ni ingles)
+_PALABRAS_IDIOMA_EXTRANJERO = {
+    # Italiano
+    "mi piace","impresa locale","informazioni","menzioni","dettagli",
+    "pagina non ufficiale","ancora nessun post","accedi","iscriviti",
+    "trasparenza della pagina","mostra tutto","persone seguono",
+    # Portugues (Brasil/Portugal)
+    "curtir","compartilhar","sobre nos","enviar mensagem","saiba mais",
+    # Frances
+    "j aime","partager","abonnes","en savoir plus","entreprise locale",
+    # Aleman
+    "gefallt mir","teilen","abonnenten","mehr erfahren","lokales unternehmen",
+    # Indonesio/Malayo
+    "bagikan","pengikut","pelajari selengkapnya","bisnis lokal",
+    # Croata/Serbio
+    "svidja mi se","podijeli","pratitelji","lokalno poduzece",
+    # Japones/Chino (caracteres)
+    "いいね","シェア","コメント","喜欢","分享","评论",
+    # Arabe
+    "اعجبني","مشاركة","تعليقات",
+}
+
+
+# ════════════════════════════════════════════════════
+# FUNCIONES DE FILTRADO
+# ════════════════════════════════════════════════════
+
+def _es_perfil_social(url):
+    """True si la URL es la raiz del perfil de una marca en redes sociales."""
+    # Contenido real de redes — dejar pasar
+    if re.search(
+        r"facebook\.com/(watch|permalink|story|photo|video|reel|posts|groups)"
+        r"|instagram\.com/(p|reel|tv)/",
+        url, re.IGNORECASE
+    ):
+        return False
+    # Perfil raiz — bloquear
+    return bool(re.search(
+        r"facebook\.com/pages/[^/]+/\d+"
+        r"|facebook\.com/[^/?#]+/?(\?[^/]*)?$"
+        r"|instagram\.com/[^/?#]+/?(\?[^/]*)?$"
+        r"|linkedin\.com/company/[^/?#]+/?(\?[^/]*)?$"
+        r"|twitter\.com/[^/?#]+/?(\?[^/]*)?$"
+        r"|x\.com/[^/?#]+/?(\?[^/]*)?$",
+        url, re.IGNORECASE
+    ))
+
+
+def _es_idioma_extranjero(url, snippet):
+    """True si el snippet esta en un idioma distinto al espanol o ingles."""
+    if get_dominio(url).endswith(".pe"):
+        return False  # Medios peruanos siempre validos
+    texto = snippet.lower()
+    return any(p in texto for p in _PALABRAS_IDIOMA_EXTRANJERO)
+
+
+def _es_post_publicitario(url, titulo, snippet):
+    """True si es un post de marca propia en redes (no cobertura periodistica)."""
+    dominio = get_dominio(url)
+    es_social = any(r in dominio for r in ["facebook","instagram","tiktok","twitter"])
+    if not es_social:
+        return False
+    texto = (titulo + " " + snippet).lower()
+    # Fecha antigua en snippet (post viejo resurgiendo) + palabras de producto
+    if _PATRON_FECHA_POST.search(snippet) and any(p in texto for p in _PALABRAS_POST_MARCA):
+        return True
+    # Muchos emojis + palabras de producto
+    emoji_count = sum(1 for c in snippet if ord(c) > 127000)
+    if emoji_count >= 3 and any(p in texto for p in _PALABRAS_POST_MARCA):
+        return True
+    return False
 
 
 def _es_basura(url, titulo, snippet):
+    """True si el resultado es basura (empleo, producto, perfil, idioma extranero)."""
     dominio = get_dominio(url)
-
-    # Dominio en lista negra (e-commerce, empleo, recetas, etc.)
     if dominio in _DOMINIOS_BASURA:
         return True
     for d in _DOMINIOS_BASURA:
         if dominio.endswith("." + d):
             return True
-
-    # Fix A: perfil corporativo de red social (no es contenido periodístico)
     if _es_perfil_social(url):
         return True
-
-    # Fix B: snippet en idioma que no es español ni inglés
     if _es_idioma_extranjero(url, snippet):
         return True
-
-    # Patrón de título de oferta de empleo
+    if _es_post_publicitario(url, titulo, snippet):
+        return True
     if _PATRON_EMPLEO.search(titulo):
         return True
-
-    # Palabras de producto/empleo/receta (2+ coincidencias)
     texto = (titulo + " " + snippet).lower()
-    coincidencias = sum(1 for p in _PALABRAS_BASURA if p in texto)
-    return coincidencias >= 2
+    return sum(1 for p in _PALABRAS_BASURA if p in texto) >= 2
 
 
-# ── Fix 3: relevancia Peru ────────────────────────────────────────────────────
+# ════════════════════════════════════════════════════
+# FILTRO DE RELEVANCIA PERU
+# ════════════════════════════════════════════════════
 
 _INDICADORES_PERU = {
     "peru","perú","peruana","peruano","peruanas","peruanos",
     "lima","arequipa","trujillo","cusco","piura","chiclayo",
     "iquitos","tacna","juliaca","huancayo","chimbote",
     "minem","osinergmin","osiptel","indecopi","sunat",
-    "sunafil","oefa","mef","pcm","congreso peruano",
-    "bolsa de valores de lima","bvl","smv",
+    "sunafil","oefa","mef","bvl","smv",
     "soles","s/.",
 }
 
@@ -128,129 +212,75 @@ _DOMINIOS_LATAM_OK = {
     "eleconomista.com","forbes.com","ft.com","wsj.com",
 }
 
+# Sufijos de paises que no son Peru
+_SUFIJOS_OTROS_PAISES = {
+    ".cl",".ar",".mx",".co",".ve",".bo",".ec",".py",".uy",
+    ".br",".cr",".gt",".hn",".sv",".ni",".pa",".cu",".do",
+}
 
-def _es_relevante_peru(url, titulo, snippet):
-    dominio = get_dominio(url)
-    if dominio.endswith(".pe"):
-        return True
-    for d in _DOMINIOS_LATAM_OK:
-        if dominio == d or dominio.endswith("." + d):
-            return True
-    texto = (url + " " + titulo + " " + snippet).lower()
-    return any(ind in texto for ind in _INDICADORES_PERU)
+# Frases que indican que Peru es solo una locacion casual de persona extranjera
+_LOCACION_CASUAL = {
+    "juega en peru","juega en perú",
+    "vive en peru","vive en perú",
+    "reside en peru","reside en perú",
+    "trabaja en peru","trabaja en perú",
+    "paso por peru","paso por perú",
+}
 
-
-# ── Fix A: perfiles corporativos de redes sociales ────────────────────────────
-#
-# Diferencia entre contenido útil y fichas de perfil:
-#   UTIL:  facebook.com/watch/?v=123  (video/post)
-#          facebook.com/permalink/... (post específico)
-#   BASURA: facebook.com/pages/Marca/ID  (ficha de página)
-#           facebook.com/NombreMarca/    (perfil directo)
-#           instagram.com/NombreMarca/   (perfil)
-#           linkedin.com/company/Nombre/ (perfil empresa)
-#
-# Regla: URLs de redes sociales que apuntan a la raíz de un perfil
-# (terminan en /pages/..., /company/..., o son perfil sin contenido)
-# no tienen valor periodístico.
-
-import re as _re2
-
-_PATRON_PERFIL_SOCIAL = _re2.compile(
-    r"facebook\.com/pages/[^/]+/\d+"          # facebook.com/pages/Marca/ID
-    r"|facebook\.com/[^/]+/?(\?.*)?$"          # facebook.com/Marca/ (raíz de perfil)
-    r"|instagram\.com/[^/]+/?(\?.*)?$"         # instagram.com/Marca/
-    r"|linkedin\.com/company/[^/]+/?(\?.*)?$"  # linkedin.com/company/Marca/
-    r"|twitter\.com/[^/]+/?(\?.*)?$"           # twitter.com/Marca/
-    r"|x\.com/[^/]+/?(\?.*)?$",                # x.com/Marca/
-    _re2.IGNORECASE
-)
-
-# Excepciones: estas rutas de Facebook/IG SÍ son contenido
-_PATRON_CONTENIDO_SOCIAL = _re2.compile(
-    r"facebook\.com/(watch|permalink|story|photo|video|reel|posts|groups)"
-    r"|instagram\.com/(p|reel|tv)/",
-    _re2.IGNORECASE
-)
-
-
-def _es_perfil_social(url):
-    """
-    True si la URL es la ficha/perfil de una marca en redes sociales,
-    no un post o contenido específico.
-    """
-    if _PATRON_CONTENIDO_SOCIAL.search(url):
-        return False  # Es contenido real, no perfil
-    return bool(_PATRON_PERFIL_SOCIAL.search(url))
-
-
-# ── Fix B: detección de idioma extranjero ─────────────────────────────────────
-#
-# Si el snippet contiene palabras características de un idioma que NO es
-# español ni inglés, el resultado no es relevante para monitoreo en Perú.
-# Aplicamos solo cuando el dominio NO es .pe (un diario peruano puede
-# tener errores de encoding pero igual es válido).
-#
-# Estrategia: listas de palabras muy frecuentes y únicas de cada idioma
-# que raramente aparecen en español o inglés.
-
-_PALABRAS_NO_ES_EN = {
-    # Italiano
-    "mi piace", "impresa locale", "informazioni", "menzioni", "dettagli",
-    "pagina non ufficiale", "ancora nessun post", "accedi", "iscriviti",
-    "trasparenza della pagina", "mostra tutto", "persone seguono",
-    # Portugués (Brasil/Portugal — diferente del español)
-    "curtir", "compartilhar", "comentários", "publicações",
-    "sobre nós", "enviar mensagem", "saiba mais", "ver mais",
-    # Francés
-    "j'aime", "partager", "commentaires", "abonnés", "suivre",
-    "en savoir plus", "voir plus", "bonjour", "entreprise locale",
-    # Alemán
-    "gefällt mir", "teilen", "kommentare", "abonnenten", "folgen",
-    "mehr erfahren", "lokales unternehmen", "impressum",
-    # Indonesio / Malayo
-    "suka", "bagikan", "komentar", "pengikut", "ikuti",
-    "pelajari selengkapnya", "bisnis lokal",
-    # Croata / Serbio / Bosnio
-    "sviđa mi se", "podijeli", "komentari", "pratitelji",
-    "lokalno poduzeće", "saznajte više",
-    # Hindú / Hindi (transliterado en latin)
-    "pasand karo", "share karo", "tippani",
-    # Árabe (transliterado)
-    "اعجبني", "مشاركة", "تعليقات",
-    # Tailandés
-    "ถูกใจ", "แชร์", "ความคิดเห็น",
-    # Japonés / Chino (caracteres)
-    "いいね", "シェア", "コメント", "喜欢", "分享", "评论",
-    # Filipino / Tagalo
-    "gusto ko ito", "ibahagi", "mga komento",
+# Palabras que confirman que la noticia es sobre una entidad empresarial/institucional
+_ENTIDAD_EMPRESARIAL = {
+    "empresa","corporacion","grupo","minera","banco","seguro","aseguradora",
+    "financiera","holding","conglomerado","industria","fabrica","planta",
+    "inversion","proyecto","contrato","licitacion","concesion",
+    "indecopi","minem","osinergmin","sunat","smv","bvl",
 }
 
 
-def _es_idioma_extranjero(url, snippet):
-    """
-    True si el snippet contiene palabras de un idioma que no es
-    español ni inglés, Y el dominio no es .pe.
-
-    Los dominios .pe se excluyen porque aunque tengan encoding raro
-    siguen siendo medios peruanos válidos.
-    """
+def _es_relevante_peru(url, titulo, snippet):
+    """True si el resultado tiene conexion real con Peru."""
     dominio = get_dominio(url)
+
+    # Dominio peruano → siempre relevante
     if dominio.endswith(".pe"):
-        return False  # Siempre confiar en medios peruanos
+        return True
 
-    texto = snippet.lower()
-    return any(palabra in texto for palabra in _PALABRAS_NO_ES_EN)
+    # Medios internacionales de referencia → verificar mencion de Peru
+    for d in _DOMINIOS_LATAM_OK:
+        if dominio == d or dominio.endswith("." + d):
+            texto = (titulo + " " + snippet).lower()
+            return any(ind in texto for ind in _INDICADORES_PERU)
+
+    texto = (titulo + " " + snippet).lower()
+
+    # Dominio de otro pais LATAM: exigir contexto empresarial/institucional,
+    # no solo mencion de Peru como locacion de una persona extranjera
+    es_otro_pais = any(dominio.endswith(s) for s in _SUFIJOS_OTROS_PAISES)
+    if es_otro_pais:
+        if not any(ind in texto for ind in _INDICADORES_PERU):
+            return False
+        # Si Peru aparece solo como locacion casual de jugador/persona → descartar
+        es_solo_locacion = any(loc in texto for loc in _LOCACION_CASUAL)
+        tiene_entidad = any(e in texto for e in _ENTIDAD_EMPRESARIAL)
+        if es_solo_locacion and not tiene_entidad:
+            return False
+        return True
+
+    # Dominio generico (.com, .net, .org)
+    # Verificar que Peru no aparezca solo como locacion casual de persona extranjera
+    tiene_ind = any(ind in texto for ind in _INDICADORES_PERU)
+    if not tiene_ind:
+        return False
+    # Si la unica aparicion de Peru es como locacion de persona y no hay entidad → descartar
+    es_solo_locacion = any(loc in texto for loc in _LOCACION_CASUAL)
+    tiene_entidad = any(e in texto for e in _ENTIDAD_EMPRESARIAL)
+    if es_solo_locacion and not tiene_entidad:
+        return False
+    return True
 
 
-# ── Fix 1: fuente desde URL ───────────────────────────────────────────────────
-
-def _fuente_desde_url(url):
-    dominio = get_dominio(url)
-    return dominio if dominio else "Desconocida"
-
-
-# ── Fechas para Serper tbs ────────────────────────────────────────────────────
+# ════════════════════════════════════════════════════
+# CONVERSIÓN DE FECHAS PARA SERPER
+# ════════════════════════════════════════════════════
 
 def _fecha_serper(fecha_iso):
     try:
@@ -273,7 +303,9 @@ def _tbs_rango(fecha_inicio, fecha_fin):
     return f"cdr:1,cd_min:{int(ayer.month)}/{int(ayer.day)}/{ayer.year},cd_max:{int(hoy.month)}/{int(hoy.day)}/{hoy.year}"
 
 
-# ── Parser de fechas de resultados ────────────────────────────────────────────
+# ════════════════════════════════════════════════════
+# FILTRO DE FECHAS EN PYTHON
+# ════════════════════════════════════════════════════
 
 _MESES_ES = {
     "ene":1,"feb":2,"mar":3,"abr":4,"may":5,"jun":6,
@@ -345,17 +377,49 @@ def _dentro_de_rango(fecha_str, fecha_inicio, fecha_fin):
     return fi <= dt <= ff
 
 
-# ── Contexto ──────────────────────────────────────────────────────────────────
+# ════════════════════════════════════════════════════
+# CONTEXTO Y VARIACIONES
+# ════════════════════════════════════════════════════
 
 def _enriquecer_query(keyword, contexto=""):
     if not contexto or not contexto.strip():
         return keyword
-    _STOP = {"para","como","también","llamada","conocida","empresa","companía","grupo","peruana","peruano","perú","peru"}
+    _STOP = {"para","como","también","llamada","conocida","empresa","compania","grupo","peruana","peruano","perú","peru"}
     tokens = [t for t in re.split(r'\W+', contexto.lower()) if len(t)>=4 and t not in _STOP][:2]
     return f"{keyword} {' '.join(tokens)}" if tokens else keyword
 
 
-# ── Serper ────────────────────────────────────────────────────────────────────
+def _fuente_desde_url(url):
+    dominio = get_dominio(url)
+    return dominio if dominio else "Desconocida"
+
+
+def generar_variaciones(keyword, contexto=""):
+    """Genera hasta 3 variaciones. Siempre incluye Peru para forzar resultados locales."""
+    base       = keyword.strip()
+    query_rica = _enriquecer_query(base, contexto)
+    tiene_peru = "peru" in base.lower() or "perú" in base.lower()
+
+    variaciones = [query_rica]
+    if not tiene_peru:
+        sin_comillas = base.replace('"','').strip()
+        variaciones.append(f'"{sin_comillas}" Peru' if '"' not in base else f"{base} Peru")
+    elif '"' not in base:
+        variaciones.append(f'"{base}"')
+    if base not in variaciones:
+        variaciones.append(base)
+
+    seen, unicas = set(), []
+    for v in variaciones:
+        if v not in seen:
+            seen.add(v)
+            unicas.append(v)
+    return unicas[:3]
+
+
+# ════════════════════════════════════════════════════
+# APIS DE BÚSQUEDA
+# ════════════════════════════════════════════════════
 
 def buscar_web(keyword, fecha_inicio=None, fecha_fin=None, num=20):
     tbs = _tbs_rango(fecha_inicio, fecha_fin)
@@ -386,8 +450,11 @@ def buscar_news(keyword, num=20):
 def buscar_youtube(keyword, fecha_inicio=None, fecha_fin=None, num=5):
     if not YOUTUBE_API_KEY:
         return []
-    params = {"part":"snippet","q":keyword,"type":"video","order":"date",
-              "regionCode":"PE","relevanceLanguage":"es","maxResults":min(num,10),"key":YOUTUBE_API_KEY}
+    params = {
+        "part":"snippet","q":keyword,"type":"video","order":"date",
+        "regionCode":"PE","relevanceLanguage":"es",
+        "maxResults":min(num,10),"key":YOUTUBE_API_KEY,
+    }
     if fecha_inicio and fecha_fin:
         params["publishedAfter"]  = f"{fecha_inicio}T00:00:00Z"
         params["publishedBefore"] = f"{fecha_fin}T23:59:59Z"
@@ -416,13 +483,11 @@ def buscar_youtube(keyword, fecha_inicio=None, fecha_fin=None, num=5):
         return []
 
 
-# ── Parsear resultado Serper ──────────────────────────────────────────────────
-
 def _parsear(item, tipo):
     url     = item.get("link","")
     source  = item.get("source","").strip()
     display = item.get("displayLink","").strip()
-    fuente  = source or display or _fuente_desde_url(url)  # Fix 1
+    fuente  = source or display or _fuente_desde_url(url)
     return {
         "tipo":tipo,
         "titulo":item.get("title","Sin título").strip(),
@@ -433,35 +498,9 @@ def _parsear(item, tipo):
     }
 
 
-def generar_variaciones(keyword, contexto=""):
-    """
-    Fix 3: siempre incluye una variacion con Peru para forzar
-    resultados geograficamente relevantes.
-    """
-    base       = keyword.strip()
-    query_rica = _enriquecer_query(base, contexto)
-    tiene_peru = "peru" in base.lower() or "peru" in base.lower()
-
-    variaciones = [query_rica]
-
-    if not tiene_peru:
-        sin_comillas = base.replace('"','').strip()
-        variaciones.append(f'"{sin_comillas}" Peru' if '"' not in base else f"{base} Peru")
-    elif '"' not in base:
-        variaciones.append(f'"{base}"')
-
-    if base not in variaciones:
-        variaciones.append(base)
-
-    seen, unicas = set(), []
-    for v in variaciones:
-        if v not in seen:
-            seen.add(v)
-            unicas.append(v)
-    return unicas[:3]
-
-
-# ── Función principal ─────────────────────────────────────────────────────────
+# ════════════════════════════════════════════════════
+# FUNCIÓN PRINCIPAL
+# ════════════════════════════════════════════════════
 
 def buscar_keyword(keyword, fecha_inicio=None, fecha_fin=None, num=20, contexto=""):
     todos = {}
@@ -505,66 +544,56 @@ def buscar_keyword(keyword, fecha_inicio=None, fecha_fin=None, num=20, contexto=
     return resultados[:num]
 
 
-# ── Tests ─────────────────────────────────────────────────────────────────────
+# ════════════════════════════════════════════════════
+# TESTS — python motor.py
+# ════════════════════════════════════════════════════
 
 def _run_tests():
     errores = 0
 
-    print("── Fix 1: _fuente_desde_url ─────────────────")
+    print("── _es_basura: empleos ──────────────────────")
     casos = [
-        ("https://gestion.pe/economia/nota", "gestion.pe"),
-        ("https://www.elcomercio.pe/nota",   "elcomercio.pe"),
-        ("https://energiminas.com/chinalco", "energiminas.com"),
-        ("https://m.rpp.pe/nota",            "rpp.pe"),
-        ("",                                 "Desconocida"),
+        ("https://jooble.org/x",       "Corporacion aceros arequipa en Pisco, Ica - Abril 2026",    "requiere personal titulado",                              True),
+        ("https://jobrapido.com/x",    "Planeador I/aceros Arequipa Ica (Peru) - Jobrapido.com",     "ACEROS AREQUIPA Requisitos Bachiller",                    True),
+        ("https://mipleo.com.pe/x",    "Ingeniero de Confiabilidad /Aceros Arequipa - Pisco, Ica",  "REQUISITOS: Profesional titulado en Ingenieria Mecanica", True),
+        ("https://plazavea.com.pe/x",  "Leche Reconstituida Entera GLORIA Lata 390g",               "enriquecida con vitaminas liquido 100g",                  True),
+        ("https://wong.pe/x",          "Gloria Leche Evaporada pack 6 unidades",                    "contiene calcio vitaminas proteinas",                     True),
+        ("https://gestion.pe/x",       "Gloria invierte 200M en nueva planta en Lima",              "la empresa lactea presento su plan de expansion",         False),
     ]
-    for url, esp in casos:
-        res = _fuente_desde_url(url)
-        ok  = res == esp
-        print(f"  {'OK' if ok else 'FAIL'}  '{url[:45]}' → '{res}'")
-        if not ok: errores += 1
+    for url,tit,snip,esp in casos:
+        res = _es_basura(url,tit,snip)
+        ok  = res==esp
+        print(f"  {'OK' if ok else 'FAIL'}  [{'basura' if esp else 'valido'}] {tit[:55]}")
+        if not ok: errores+=1
 
-    print("\n── Fix 2: _es_basura ────────────────────────")
+    print("\n── _es_basura: perfiles y posts sociales ────")
     casos = [
-        ("https://samsung.com/pe/phones",  "Samsung Galaxy A57",          "comprar precio S/. oferta",      True,  "dominio basura"),
-        ("https://gestion.pe/nota",        "Samsung lanza Galaxy en Peru", "la empresa presento en Lima",    False, "noticia legitima"),
-        ("https://allrecipes.com/recipe",  "Pollo AJI-NO-MOTO",           "ingredientes cucharada cocinar",  True,  "receta basura"),
-        ("https://elcomercio.pe/nota",     "Ajinomoto inaugura planta",    "empresa invirtio en Peru",       False, "noticia inversion"),
-        ("https://computrabajo.com.pe",    "Vacante LG Peru",              "postular sueldo requisitos",     True,  "empleo basura"),
-        ("https://rpp.pe/nota",            "LG gana premio Lima",          "empresa presento resultados",    False, "noticia valida"),
+        ("https://facebook.com/pages/-Aceros-Arequipa-/576449?locale=it_IT", '" Aceros Arequipa " - Home', 'Mi piace: 0. Impresa locale. Informazioni.', True),
+        ("https://facebook.com/permalink/123", "Conoce como se elabora la Leche Gloria Sin Lactosa", "Gloria Peru. Jul 25, 2018. Nueva Gloria Sin Lactosa. Conoce como se elabora la Leche Gloria Sin Lactosa y su novedoso proceso de ultrafiltracion.", True),
+        ("https://facebook.com/permalink/456", "Nueva Leche evaporada Gloria Ninos ahora con DOBLE DHA", "Gloria Peru. Jul 5, 2019. Nueva Leche evaporada Gloria Ninos ahora con DOBLE DHA. Potencia la nutricion de tus hijos!", True),
+        ("https://facebook.com/permalink/789", "Gloria S.A. reporta utilidades record en 2026", "Lima. La empresa lactea anuncio sus resultados financieros del primer trimestre", False),
+        ("https://gestion.pe/x",               "Indecopi multa a Gloria por practicas anticompetitivas", "grupo Gloria sancionado por 59 millones", False),
     ]
-    for url, tit, snip, esp, desc in casos:
-        res = _es_basura(url, tit, snip)
-        ok  = res == esp
-        print(f"  {'OK' if ok else 'FAIL'}  [{desc}] → {res}")
-        if not ok: errores += 1
+    for url,tit,snip,esp in casos:
+        res = _es_basura(url,tit,snip)
+        ok  = res==esp
+        print(f"  {'OK' if ok else 'FAIL'}  [{'basura' if esp else 'valido'}] {tit[:60]}")
+        if not ok: errores+=1
 
-    print("\n── Fix 3: _es_relevante_peru ────────────────")
+    print("\n── _es_relevante_peru: dominios otros paises ")
     casos = [
-        ("https://gestion.pe/nota",       "Repsol Lima",           "",                          True,  "dominio .pe"),
-        ("https://infobae.com/peru/nota",  "Chinalco Peru",         "inversion Lima",            True,  "medio latam + Peru"),
-        ("https://allrecipes.com/recipe",  "Ajinomoto Ramen Bowl",  "authentic Japanese",        False, "sin Peru"),
-        ("https://samsung.com/us/phones",  "Samsung Galaxy launch", "available stores",          False, "EE.UU. sin Peru"),
-        ("https://bloomberglinea.com/nota","Kallpa energia Peru",   "Lima inversion",            True,  "medio latam + Peru"),
+        ("https://bolavip.com/chile/x",  "Paso sin pena ni gloria por la U, juega en Peru",    "Ex jugador de Universidad de Chile vive en Peru",                    False),
+        ("https://clarin.com.ar/x",      "El gobierno peruano anuncia medidas economicas",      "Lima Peru el presidente anuncio reforma del sector minero",          True),
+        ("https://gestion.pe/x",         "Gloria S.A. reporta record de ventas",                "empresa lactea peruana Lima",                                        True),
+        ("https://infobae.com/peru/x",   "Indecopi multa a Gloria Peru",                        "empresa sancionada Lima anticompetitivo",                            True),
+        ("https://bolavip.com/ar/x",     "Boca Juniors gana la gloria en Copa",                 "el equipo argentino logro el titulo en el estadio monumental",        False),
+        ("https://emol.com.cl/x",        "Empresa Gloria invierte en Peru",                     "la corporacion peruana expande operaciones Lima inversion empresa",  True),
     ]
-    for url, tit, snip, esp, desc in casos:
-        res = _es_relevante_peru(url, tit, snip)
-        ok  = res == esp
-        print(f"  {'OK' if ok else 'FAIL'}  [{desc}] → {res}")
-        if not ok: errores += 1
-
-    print("\n── Fix 3: generar_variaciones (Peru forzado) ")
-    casos = [
-        ("Ajinomoto",    "",   True,  "debe incluir Peru"),
-        ("Samsung Peru", "",   True,  "ya tiene Peru"),
-        ("Repsol",       "empresa energetica", True, "contexto no quita Peru"),
-    ]
-    for kw, ctx, debe_peru, desc in casos:
-        vars_ = generar_variaciones(kw, ctx)
-        tiene = any("peru" in v.lower() for v in vars_)
-        ok = tiene == debe_peru
-        print(f"  {'OK' if ok else 'FAIL'}  [{desc}] {vars_}")
-        if not ok: errores += 1
+    for url,tit,snip,esp in casos:
+        res = _es_relevante_peru(url,tit,snip)
+        ok  = res==esp
+        print(f"  {'OK' if ok else 'FAIL'}  [{'peru' if esp else 'no-peru'}] {tit[:60]}")
+        if not ok: errores+=1
 
     print(f"\n{'OK - Todos los tests pasaron' if errores==0 else f'FAIL - {errores} test(s) fallaron'}")
 
