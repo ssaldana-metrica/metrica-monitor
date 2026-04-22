@@ -267,9 +267,10 @@ def recargar_jobs() -> None:
                 id=f"kw_{kw['id']}", replace_existing=True,
             )
         else:
+            hora_envio = int(kw.get("hora_envio", 12))  # default 12pm
             scheduler.add_job(
                 job_diario,
-                CronTrigger(hour=12, minute=0, timezone="America/Lima"),
+                CronTrigger(hour=hora_envio, minute=0, timezone="America/Lima"),
                 args=[kw["id"], kw["keyword"], contexto],
                 id=f"kw_{kw['id']}", replace_existing=True,
             )
